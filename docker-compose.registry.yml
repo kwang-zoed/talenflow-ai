@@ -1,0 +1,15 @@
+# 为自定义服务指定镜像名，便于 build 后 push 到仓库
+# 用法见 scripts/build-and-push.ps1
+
+services:
+  mcp-server:
+    image: ${DOCKER_REGISTRY:-docker.io}/${DOCKER_NAMESPACE}/talentflow-backend:${IMAGE_TAG:-latest}
+
+  backend:
+    image: ${DOCKER_REGISTRY:-docker.io}/${DOCKER_NAMESPACE}/talentflow-backend:${IMAGE_TAG:-latest}
+
+  celery-worker:
+    image: ${DOCKER_REGISTRY:-docker.io}/${DOCKER_NAMESPACE}/talentflow-backend:${IMAGE_TAG:-latest}
+
+  frontend:
+    image: ${DOCKER_REGISTRY:-docker.io}/${DOCKER_NAMESPACE}/talentflow-frontend:${IMAGE_TAG:-latest}

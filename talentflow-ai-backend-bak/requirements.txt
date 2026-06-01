@@ -1,0 +1,42 @@
+
+fastapi
+uvicorn
+sqlmodel
+sqlalchemy
+pymysql
+python-dotenv
+pydantic
+pydantic-settings
+
+# 认证
+python-jose[cryptography]
+passlib
+argon2-cffi
+
+# RAG 相关
+sentence-transformers
+transformers
+torch
+faiss-cpu
+rank-bm25
+
+# 异步任务队列
+celery
+redis>=5.2.1,<9
+
+# 其他
+python-multipart
+asyncmy
+
+# AI Agent 相关（Redis 检查点需单独安装 langgraph-checkpoint-redis）
+langgraph>=1.0.0
+langgraph-checkpoint>=4.0.0
+langgraph-checkpoint-redis>=0.2.0
+langgraph-checkpoint-sqlite>=2.0.0
+aiosqlite>=0.20
+langchain>=0.3.0
+langchain-openai>=0.2.0
+langsmith>=0.1.117
+fastmcp>=0.5.0
+openai>=1.50.0
+

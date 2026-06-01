@@ -1,0 +1,97 @@
+
+# ===================== 环境变量（勿提交密钥） =====================
+.env
+.env.local
+.env.registry
+.env.*.local
+
+# 项目内 GitHub SSH 私钥（勿提交）
+.github-keys/
+!/.github-keys/README.md
+
+# BGE 模型权重（构建/本地 download_models.py 下载，勿提交 Git）
+talentflow-ai-backend-bak/app/bge-small-zh-v1.5-embedding/
+talentflow-ai-backend-bak/app/bge-reranker-v2-m3/
+
+# LangGraph 本地 checkpoint（运行时生成）
+talentflow-ai-backend-bak/data/*.sqlite
+talentflow-ai-backend-bak/data/*.sqlite-*
+
+# ===================== IDE/编辑器配置 =====================
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+*.swp
+*.swo
+*~
+
+# ===================== 操作系统文件 =====================
+.DS_Store
+Thumbs.db
+ehthumbs.db
+*.bak
+*.tmp
+*.temp
+*.log
+
+# ===================== 前端相关 =====================
+node_modules/
+dist/
+build/
+.cache/
+.parcel-cache/
+.nuxt/
+.vuepress/dist
+.serverless/
+.fusebox/
+.nyc_output/
+*.tsbuildinfo
+*.local
+
+# ===================== Python 后端相关 =====================
+# 虚拟环境
+venv/
+env/
+.venv/
+.env/
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+*.whl
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+```
+
+---

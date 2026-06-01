@@ -1,0 +1,20 @@
+# 服务器端：从仓库拉镜像运行（无需在服务器 build）
+# 使用前复制 .env.registry 中的 DOCKER_REGISTRY / DOCKER_NAMESPACE / IMAGE_TAG 到 .env
+# 或：docker compose -f docker-compose.yml -f docker-compose.pull.yml --env-file .env.registry up -d
+
+services:
+  mcp-server:
+    build: !reset null
+    image: ${DOCKER_REGISTRY:-docker.io}/${DOCKER_NAMESPACE}/talentflow-backend:${IMAGE_TAG:-latest}
+
+  backend:
+    build: !reset null
+    image: ${DOCKER_REGISTRY:-docker.io}/${DOCKER_NAMESPACE}/talentflow-backend:${IMAGE_TAG:-latest}
+
+  celery-worker:
+    build: !reset null
+    image: ${DOCKER_REGISTRY:-docker.io}/${DOCKER_NAMESPACE}/talentflow-backend:${IMAGE_TAG:-latest}
+
+  frontend:
+    build: !reset null
+    image: ${DOCKER_REGISTRY:-docker.io}/${DOCKER_NAMESPACE}/talentflow-frontend:${IMAGE_TAG:-latest}
