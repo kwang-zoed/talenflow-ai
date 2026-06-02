@@ -75,6 +75,13 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: 释放 Runner 磁盘
+        run: |
+          df -h
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL 2>/dev/null || true
+          sudo docker system prune -af 2>/dev/null || true
+          df -h
+
       - uses: docker/setup-buildx-action@v3
 
       - name: 镜像名
@@ -101,6 +108,8 @@ jobs:
           context: ./talentflow-ai-backend-bak
           file: ./talentflow-ai-backend-bak/Dockerfile
           push: true
+          provenance: false
+          sbom: false
           tags: |
             ${{ steps.meta.outputs.backend }}:${{ env.IMAGE_TAG }}
             ${{ steps.meta.outputs.backend }}:${{ github.sha }}
@@ -125,6 +134,8 @@ jobs:
         with:
           context: ./talentflow-ai-frontend
           push: true
+          provenance: false
+          sbom: false
           tags: |
             ${{ steps.meta.outputs.frontend }}:${{ env.IMAGE_TAG }}
             ${{ steps.meta.outputs.frontend }}:${{ github.sha }}
@@ -134,15 +145,24 @@ jobs:
           cache-from: type=gha,scope=frontend-publish
           cache-to: type=gha,mode=max,scope=frontend-publish
 
-      - name: 删除 Runner 上的旧 talentflow 镜像
+      - name: 删除 Runner 上的旧 talentflow 镜像（可选清理）
+        if: always()
+        continue-on-error: true
         run: |
-          chmod +x scripts/prune-talentflow-images.sh
-          KEEP_TAG="${{ env.IMAGE_TAG }}"
-          KEEP_SHA="${{ github.sha }}"
-          ./scripts/prune-talentflow-images.sh \
-            --registry "${{ env.DOCKER_REGISTRY }}" \
-            --namespace "${{ env.DOCKER_NAMESPACE }}" \
-            --keep-tags "${KEEP_TAG},${KEEP_SHA}"
+          REG="${{ env.DOCKER_REGISTRY }}"
+          NS="${{ env.DOCKER_NAMESPACE }}"
+          KEEP="${{ env.IMAGE_TAG }},${{ github.sha }}"
+          for repo in talentflow-backend talentflow-frontend; do
+            name="${REG}/${NS}/${repo}"
+            docker images "$name" --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | while read -r ref; do
+              tag="${ref##*:}"
+              case ",${KEEP}," in
+                *,"${tag}",*) echo "keep $ref" ;;
+                *) docker rmi -f "$ref" 2>/dev/null || true ;;
+              esac
+            done
+          done
+          docker image prune -f 2>/dev/null || true
 
       - name: 发布摘要
         run: |
