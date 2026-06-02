@@ -66,8 +66,10 @@ docker.io/<你的用户名>/talentflow-frontend:latest
 
 | Secret 名称 | 填什么 |
 |-------------|--------|
-| `DOCKERHUB_USERNAME` | Hub 用户名 |
-| `DOCKERHUB_TOKEN` | 上一步的 Access Token（不是登录密码） |
+| `DOCKERHUB_USERNAME` | **`kwangzoed`** |
+| `DOCKERHUB_TOKEN` | Docker Hub → Security → Personal access token（见 `docs/DOCKERHUB_SECRETS.md`） |
+
+> 用 GitHub 登录 Docker Hub **不能**代替 Token；须在 Hub 单独生成 Token 填到 Secrets。
 
 可选 **Variables**（非必须）：
 
