@@ -21,11 +21,12 @@ COPY requirements.txt .
 RUN pip install -i https://pypi.tuna.tsinghua.edu.cn/simple --timeout 120 -r requirements.txt \
     && pip install -i https://pypi.tuna.tsinghua.edu.cn/simple huggingface_hub
 
-# 模型不进 Git（体积 >2GB）；构建时从 HuggingFace / 镜像站拉取
-ARG HF_ENDPOINT=https://hf-mirror.com
-ENV HF_ENDPOINT=${HF_ENDPOINT}
+# 模型不进 Git（体积 >2GB）；构建时下载（国内 build 可传 --build-arg HF_ENDPOINT=https://hf-mirror.com）
+ARG HF_ENDPOINT=
+ENV HF_ENDPOINT=${HF_ENDPOINT} \
+    HF_HUB_DOWNLOAD_TIMEOUT=600
 COPY scripts/download_models.py ./scripts/download_models.py
-RUN mkdir -p app && python scripts/download_models.py
+RUN mkdir -p app && python -u scripts/download_models.py
 
 COPY app ./app
 COPY mcp_server ./mcp_server

@@ -71,6 +71,7 @@ jobs:
           tags: talentflow-backend:ci-${{ github.sha }}
           build-args: |
             PYTHON_BASE=${{ env.PYTHON_BASE }}
+            HF_ENDPOINT=https://huggingface.co
           cache-from: type=gha,scope=backend
           cache-to: type=gha,mode=max,scope=backend
 

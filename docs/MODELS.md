@@ -13,7 +13,16 @@ python scripts/download_models.py
 
 ## Docker 构建
 
-`Dockerfile` 在 `docker build` 时自动执行 `download_models.py`（默认 `HF_ENDPOINT=https://hf-mirror.com`）。
+`Dockerfile` 在 `docker build` 时自动执行 `download_models.py`。
+
+- **GitHub Actions**：自动用 `https://huggingface.co`（美国 Runner 上 hf-mirror 常失败）
+- **本机国内**：构建时传镜像站，例如：
+
+```powershell
+docker compose build backend --build-arg HF_ENDPOINT=https://hf-mirror.com
+```
+
+首次构建约 **10～20 分钟**（要下 ~2.2GB reranker），属正常。
 
 ## GitHub Actions CI / Publish
 

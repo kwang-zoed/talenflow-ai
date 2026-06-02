@@ -106,6 +106,7 @@ jobs:
             ${{ steps.meta.outputs.backend }}:${{ github.sha }}
           build-args: |
             PYTHON_BASE=${{ env.PYTHON_BASE }}
+            HF_ENDPOINT=https://huggingface.co
           cache-from: type=gha,scope=backend-publish
           cache-to: type=gha,mode=max,scope=backend-publish
 
