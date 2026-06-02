@@ -1,0 +1,13 @@
+/* 必须放在最上面 */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 全局高度重置：这是解决“右侧空白”的关键 */
+html, body, #app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  /* 防止页面出现全局滚动条，让滚动条只在聊天窗口内部出现 */
+  overflow: hidden; 
+}
