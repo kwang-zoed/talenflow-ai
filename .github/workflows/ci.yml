@@ -45,7 +45,10 @@ jobs:
 
       - name: 校验 compose 配置
         working-directory: ${{ github.workspace }}
-        run: docker compose -f docker-compose.yml config --quiet
+        run: |
+          # .env 在 .gitignore 中，CI 用 .env.example 生成占位文件仅做语法校验
+          cp .env.example .env
+          docker compose -f docker-compose.yml config --quiet
 
   docker-build-verify:
     name: Docker 构建验证（不推送）

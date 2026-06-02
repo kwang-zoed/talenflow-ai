@@ -53,8 +53,25 @@ jobs:
         with:
           submodules: false
 
+      - name: 检查 Docker Hub Secrets 是否生效
+        env:
+          DH_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+          DH_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          if [ -z "$DH_USER" ]; then
+            echo "::error::Secret 未生效或为空：名称必须是 DOCKERHUB_USERNAME（见 docs/DOCKERHUB_SECRETS.md）"
+            exit 1
+          fi
+          if [ -z "$DH_TOKEN" ]; then
+            echo "::error::Secret 未生效或为空：名称必须是 DOCKERHUB_TOKEN（填 Docker Hub Access Token，不是 GitHub Token）"
+            exit 1
+          fi
+          echo "Docker Hub 用户名已读取（${#DH_USER} 个字符）"
+          echo "Docker Hub Token 已读取（${#DH_TOKEN} 个字符）"
+
       - uses: docker/login-action@v3
         with:
+          registry: docker.io
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
