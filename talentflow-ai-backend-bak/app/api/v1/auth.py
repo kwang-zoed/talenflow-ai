@@ -16,7 +16,7 @@ router = APIRouter()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
-
+# 注册功能
 @router.post("/register", response_model=schemas.UserCreate, status_code=status.HTTP_201_CREATED)
 def register(
         user_in: schemas.UserCreate,
