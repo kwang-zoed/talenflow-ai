@@ -337,26 +337,44 @@ cd C:\Users\kzd\Desktop\talentflow-ai
 
 ---
 
-## 六、阶段 D：本机用 Hub 上的镜像跑起来（验证「能跑通」）
+## 六、阶段 D：本机 / 服务器用 Hub 镜像跑起来
 
-仍无远程服务器时，可在本机用 **pull 模式** 验证镜像是否可用：
+### 本机验证（开发端口 8080）
 
 ```powershell
 cd C:\Users\kzd\Desktop\talentflow-ai
-# 确保根目录 .env 已配置 MySQL/Redis/API Key 等
-docker compose -f docker-compose.yml -f docker-compose.pull.yml pull
-docker compose -f docker-compose.yml -f docker-compose.pull.yml up -d
+Copy-Item .env.registry.example .env.registry   # 填 DOCKER_NAMESPACE=kwangzoed
+docker compose -f docker-compose.yml -f docker-compose.pull.yml -f docker-compose.hub-entrypoint-fix.yml `
+  --env-file .env --env-file .env.registry pull
+docker compose -f docker-compose.yml -f docker-compose.pull.yml -f docker-compose.hub-entrypoint-fix.yml `
+  --env-file .env --env-file .env.registry up -d
+```
+
+### 云服务器生产（端口 80）
+
+详见 **`docs/DEPLOY_SERVER.md`**，一键脚本：
+
+```bash
+./scripts/deploy-server.sh
+./scripts/init-db.sh dandelion_tribe_schema.sql   # 首次
 ```
 
 | 步骤 | 做什么 |
 |------|--------|
-| D-1 pull | 从 Hub 拉 `latest`（不在本机构建） |
-| D-2 up | 启动 mysql、redis、backend、celery、mcp、frontend |
-| D-3 访问 | 浏览器 `http://localhost:8080`（前端）、API `8000` |
+| D-1 pull | Hub 拉 `latest` |
+| D-2 up | 启动全栈（含 entrypoint 修复） |
+| D-3 seed | `seed_demo_users.py` 创建 admin/hr |
+| D-4 访问 | 服务器 `http://<公网IP>/` |
 
-**CI/Publish 不会自动做 D**；这是你自己验证部署物是否正常。
+---
 
-**出问题可问：**「D-2 某容器一直 restarting …」
+## 六点五、Publish 与 CI 的关系（2026 更新）
+
+- **CI**（`ci.yml`）：PR / push main → 静态检查 + Docker build 验证（不 push）
+- **Publish**（`publish-dockerhub.yml`）：**CI 成功结束后**自动触发（`workflow_run`），或 Actions 页 **手动 Run**
+- 两者共用 **`.github/actions/backend-check`**，避免重复维护 pip / check_imports 列表
+- Publish 完成后 Runner 调用 **`scripts/prune-talentflow-images.sh`** 清理旧 tag
+- 若 `ENABLE_SSH_DEPLOY=true` 且配置了 `SSH_PRIVATE_KEY`，自动 SSH 部署到生产机，见 **`docs/DEPLOY_SSH.md`**
 
 ---
 

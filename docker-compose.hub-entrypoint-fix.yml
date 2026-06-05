@@ -1,0 +1,31 @@
+# 临时修复：Hub 上已推送的 backend 镜像若 entrypoint 为 CRLF，会报
+#   exec /docker-entrypoint.sh: no such file or directory
+# 新镜像（Dockerfile sed + .gitattributes LF）推 Hub 后可移除此文件。
+# 当前已合并进 docker-compose.server.yml。
+#
+# 注意：必须清空镜像自带 CMD，否则会与 entrypoint 拼成两条 uvicorn 命令。
+#
+# 用法：
+#   docker compose -f docker-compose.yml -f docker-compose.pull.yml \
+#     -f docker-compose.hub-entrypoint-fix.yml \
+#     --env-file .env --env-file .env.registry up -d
+
+services:
+  backend:
+    entrypoint: ["uvicorn"]
+    command: ["app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+  mcp-server:
+    entrypoint: ["python"]
+    command: ["mcp_server/server.py"]
+
+  celery-worker:
+    entrypoint: ["celery"]
+    command:
+      [
+        "-A",
+        "app.core.celery_app",
+        "worker",
+        "--loglevel=info",
+        "--concurrency=1",
+      ]

@@ -43,8 +43,17 @@ def _has_weights(target: Path) -> bool:
     return False
 
 
+def _normalize_endpoint(url: str) -> str:
+    url = url.strip().rstrip("/")
+    if not url:
+        return ""
+    if not url.startswith(("http://", "https://")):
+        url = f"https://{url}"
+    return url
+
+
 def _endpoint_candidates() -> list[str]:
-    explicit = (os.getenv("HF_ENDPOINT") or "").strip().rstrip("/")
+    explicit = _normalize_endpoint(os.getenv("HF_ENDPOINT") or "")
     if explicit:
         return [explicit]
 
@@ -66,7 +75,6 @@ def _download_one(repo_id: str, target: Path, force: bool) -> None:
 
     for endpoint in _endpoint_candidates():
         os.environ["HF_ENDPOINT"] = endpoint
-        os.environ["HUGGINGFACE_HUB_ENDPOINT"] = endpoint
         print(f"[download] {repo_id} -> {target} via {endpoint}", flush=True)
 
         for attempt in range(1, 4):
@@ -75,7 +83,7 @@ def _download_one(repo_id: str, target: Path, force: bool) -> None:
                     repo_id=repo_id,
                     local_dir=str(target),
                     allow_patterns=ALLOW_PATTERNS,
-                    resume_download=True,
+                    endpoint=endpoint,
                 )
                 if not _has_weights(target):
                     raise RuntimeError(f"下载结束但未发现权重文件: {target}")

@@ -109,21 +109,28 @@ OPENAI_API_KEY=sk-xxx
 
 ## 五、启动（生产模式）
 
+### 方式 A：从 Docker Hub 拉镜像（推荐）
+
 ```bash
 cd /opt/talentflow-ai
-chmod +x scripts/deploy-remote.sh
-
-# 生产 compose：仅对外暴露 frontend:80，MySQL/Redis/API/MCP 不映射公网
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+cp .env.registry.example .env.registry   # DOCKER_NAMESPACE=kwangzoed
+chmod +x scripts/deploy-server.sh
+./scripts/deploy-server.sh
 ```
 
-或使用脚本：
+详见 **`docs/DEPLOY_SERVER.md`**（含 seed、安全组、故障排查）。
+
+### 方式 B：在服务器本地 build（需模型目录，耗时长）
 
 ```bash
-./scripts/deploy-remote.sh
+DEPLOY_MODE=build ./scripts/deploy-remote.sh
 ```
 
-首次 build 约 **20～40 分钟**，可用 `docker compose logs -f backend` 观察进度。
+或：
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
 
 ---
 

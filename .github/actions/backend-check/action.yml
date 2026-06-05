@@ -1,0 +1,25 @@
+name: Backend static check
+description: Import check + docker compose config validation
+
+runs:
+  using: composite
+  steps:
+    - name: 安装 Python 依赖（CI 轻量子集）
+      shell: bash
+      working-directory: talentflow-ai-backend-bak
+      run: |
+        pip install -q pydantic pydantic-settings python-dotenv sqlalchemy sqlmodel pymysql
+        pip install -q langchain-core langgraph langsmith fastapi httpx
+        pip install -q python-jose[cryptography] passlib argon2-cffi
+        pip install -q pdfplumber python-docx
+
+    - name: check_imports
+      shell: bash
+      working-directory: talentflow-ai-backend-bak
+      run: python check_imports.py
+
+    - name: 校验 compose 配置
+      shell: bash
+      run: |
+        cp .env.example .env
+        docker compose -f docker-compose.yml config --quiet

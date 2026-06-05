@@ -95,7 +95,8 @@ const onSubmit = async () => {
     formData.append('password', form.password);
 
     // 3. 发送 POST 请求
-    const response = await axios.post('http://127.0.0.1:8000/api/v1/auth/login', formData, {
+    // 与业务接口一致：走当前站点 /api（8080 由 nginx 反代到 backend），避免 127.0.0.1 在外网/手机端失效
+    const response = await axios.post('/api/v1/auth/login', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
     });
 

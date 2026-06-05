@@ -1,0 +1,14 @@
+# 云服务器生产部署：Hub 拉镜像 + 仅暴露 80 + entrypoint CRLF 修复
+#
+# 用法：
+#   cp .env.production.example .env && cp .env.registry.example .env.registry
+#   docker compose -f docker-compose.server.yml --env-file .env --env-file .env.registry pull
+#   docker compose -f docker-compose.server.yml --env-file .env --env-file .env.registry up -d
+#
+# 或：./scripts/deploy-server.sh
+
+include:
+  - docker-compose.yml
+  - docker-compose.pull.yml
+  - docker-compose.prod.yml
+  - docker-compose.hub-entrypoint-fix.yml

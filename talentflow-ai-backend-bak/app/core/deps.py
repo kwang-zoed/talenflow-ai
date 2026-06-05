@@ -1,7 +1,7 @@
 from fastapi import Depends,HTTPException,status
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordBearer
-from app.models import base
+from app.models import user as user_model
 from sqlalchemy import select
 from jose import jwt
 from app.core import security,database
@@ -29,14 +29,16 @@ async def get_current_user(
     except Exception as e:
         raise credentials_exception
 
-    user = db.execute(select(base.UserDB).where(base.UserDB.id == int(user_id))).scalar_one_or_none()
+    user = db.execute(
+        select(user_model.User).where(user_model.User.id == int(user_id))
+    ).scalar_one_or_none()
 
     if user is None:
         raise credentials_exception
     return user
 
 # 获取当前活跃用户
-async def get_current_active_user(current_user: base.UserDB = Depends(get_current_user)):
+async def get_current_active_user(current_user: user_model.User = Depends(get_current_user)):
     if not current_user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -45,7 +47,7 @@ async def get_current_active_user(current_user: base.UserDB = Depends(get_curren
     return current_user
 
 # 获取当前活跃的管理员用户
-def get_current_active_admin(current_user: base.UserDB = Depends(get_current_user)):
+def get_current_active_admin(current_user: user_model.User = Depends(get_current_user)):
     if not current_user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -58,7 +60,7 @@ def get_current_active_admin(current_user: base.UserDB = Depends(get_current_use
 
 
 # 获取当前活跃的HR/Mentor用户
-def get_current_active_mentor(current_user: base.UserDB = Depends(get_current_user)):
+def get_current_active_mentor(current_user: user_model.User = Depends(get_current_user)):
     if not current_user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

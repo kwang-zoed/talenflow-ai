@@ -21,9 +21,6 @@ jobs:
   backend-check:
     name: 后端静态检查
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: talentflow-ai-backend-bak
     steps:
       - uses: actions/checkout@v4
         with:
@@ -35,20 +32,7 @@ jobs:
           cache: pip
           cache-dependency-path: talentflow-ai-backend-bak/requirements.txt
 
-      - name: 安装依赖（仅检查 import，跳过 GPU 大包可加快速度见文档）
-        run: |
-          pip install -q pydantic pydantic-settings python-dotenv sqlalchemy sqlmodel pymysql
-          pip install -q langchain-core langgraph langsmith fastapi httpx
-
-      - name: check_imports
-        run: python check_imports.py
-
-      - name: 校验 compose 配置
-        working-directory: ${{ github.workspace }}
-        run: |
-          # .env 在 .gitignore 中，CI 用 .env.example 生成占位文件仅做语法校验
-          cp .env.example .env
-          docker compose -f docker-compose.yml config --quiet
+      - uses: ./.github/actions/backend-check
 
   docker-build-verify:
     name: Docker 构建验证（不推送）

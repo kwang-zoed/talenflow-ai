@@ -8,6 +8,8 @@
 # 项目内 GitHub SSH 私钥（勿提交）
 .github-keys/
 !/.github-keys/README.md
+.cursor/rules/*.pem
+*.pem
 
 # BGE 模型权重（构建/本地 download_models.py 下载，勿提交 Git）
 talentflow-ai-backend-bak/app/bge-small-zh-v1.5-embedding/

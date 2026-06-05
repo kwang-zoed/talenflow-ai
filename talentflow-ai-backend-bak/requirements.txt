@@ -27,6 +27,10 @@ redis>=5.2.1,<9
 # 其他
 python-multipart
 asyncmy
+pdfplumber
+python-docx
+huggingface_hub
+httpx
 
 # AI Agent 相关（Redis 检查点需单独安装 langgraph-checkpoint-redis）
 langgraph>=1.0.0

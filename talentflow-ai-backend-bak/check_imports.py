@@ -18,4 +18,10 @@ print('[3] Prompt SINGLE length:', len(prompt))
 prompt_batch = get_parse_prompt('test content', ParseMode.BATCH)
 print('[4] Prompt BATCH length:', len(prompt_batch))
 
+from app.utils.document_parser import extract_text_from_bytes
+print('[5] document_parser OK')
+
+from app.core import security
+print('[6] security OK, hash prefix:', security.get_password_hash('test')[:20])
+
 print("\n=== ALL CHECK PASSED ===")

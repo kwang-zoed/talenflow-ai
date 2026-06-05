@@ -88,7 +88,7 @@ const rules = {
 // 页面加载时获取租户列表
 const fetchTenants = async () => {
   try {
-    const response = await axios.get('http://127.0.0.1:8000/api/v1/auth/tenants');
+    const response = await axios.get('/api/v1/auth/tenants');
     tenants.value = response.data;
   } catch (error) {
     ElMessage.error('获取公司列表失败');
@@ -105,7 +105,7 @@ const onSubmit = async () => {
   try {
     loading.value = true;
     // 发送注册请求，注意这里包含了 tenant_id
-    await axios.post('http://127.0.0.1:8000/api/v1/auth/register', form);
+    await axios.post('/api/v1/auth/register', form);
     
     ElMessage.success('注册成功，请登录');
     router.push('/login');
