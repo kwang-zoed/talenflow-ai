@@ -228,6 +228,22 @@ jobs:
             echo "SSH 目标: ${{ env.SSH_USER }}@${{ env.SSH_HOST }}:${{ env.SSH_DEPLOY_PATH }}"
           fi
 
+      - name: SSH 连通性测试
+        if: steps.deploy_gate.outputs.enabled == 'true' && steps.ssh.outputs.configured == 'true'
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ env.SSH_HOST }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ vars.SSH_PORT || secrets.SSH_PORT || 22 }}
+          command_timeout: 2m
+          debug: true
+          script: |
+            echo "=== SSH 连通 OK ==="
+            echo "user=$(whoami) host=$(hostname)"
+            echo "deploy_path=${{ env.SSH_DEPLOY_PATH }}"
+            ls -la "${{ env.SSH_DEPLOY_PATH }}" 2>&1 || echo "目录不存在或不可读"
+
       - name: 远程 pull 镜像并重启
         if: steps.deploy_gate.outputs.enabled == 'true' && steps.ssh.outputs.configured == 'true'
         uses: appleboy/ssh-action@v1.2.0
@@ -235,42 +251,72 @@ jobs:
           host: ${{ env.SSH_HOST }}
           username: ${{ env.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ vars.SSH_PORT || 22 }}
+          port: ${{ vars.SSH_PORT || secrets.SSH_PORT || 22 }}
           command_timeout: 30m
+          debug: true
           script_stop: true
           script: |
             set -euo pipefail
-            DEPLOY_PATH="${{ env.SSH_DEPLOY_PATH }}"
+            DEPLOY_PATH="$(printf '%s' '${{ env.SSH_DEPLOY_PATH }}' | tr -d '\r')"
             REPO="https://github.com/${{ github.repository }}.git"
-            BRANCH="${{ github.event.workflow_run.head_branch || github.ref_name }}"
+            BRANCH="${{ github.event.workflow_run.head_branch || github.ref_name || 'master' }}"
+            BRANCH="${BRANCH#refs/heads/}"
+            if [ -z "${BRANCH}" ] || [ "${BRANCH}" = "null" ]; then
+              BRANCH="master"
+            fi
 
-            echo "=== 部署目录: ${DEPLOY_PATH} ==="
+            echo "=== 部署开始 $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+            echo "DEPLOY_PATH=${DEPLOY_PATH}"
+            echo "REPO=${REPO} BRANCH=${BRANCH}"
+
             mkdir -p "${DEPLOY_PATH}"
             cd "${DEPLOY_PATH}"
+            echo "PWD=$(pwd)"
 
             if [ ! -f .env ]; then
-              echo "缺少 .env，请先在服务器配置（cp .env.production.example .env）"
+              echo "错误: 缺少 .env（请先 cp .env.production.example .env 并编辑）"
+              ls -la
               exit 1
             fi
 
-            if [ ! -d .git ]; then
-              echo "未检测到 git 仓库，拉取代码..."
-              if [ -z "$(ls -A 2>/dev/null || true)" ]; then
-                git clone --depth 1 --branch "${BRANCH}" "${REPO}" .
-              else
-                git init
-                git remote add origin "${REPO}" 2>/dev/null || git remote set-url origin "${REPO}"
-                git fetch --depth 1 origin "${BRANCH}"
-                git checkout -f "origin/${BRANCH}"
+            sync_repo() {
+              export GIT_TERMINAL_PROMPT=0
+              if [ -f scripts/deploy-server.sh ]; then
+                echo "scripts/deploy-server.sh 已存在"
+                if [ -d .git ]; then
+                  echo "尝试 git pull（失败不阻断部署）..."
+                  git fetch origin "${BRANCH}" 2>&1 || git fetch --all --prune 2>&1 || true
+                  if ! git symbolic-ref -q HEAD >/dev/null 2>&1; then
+                    git checkout -B "${BRANCH}" "origin/${BRANCH}" 2>&1 || true
+                  fi
+                  git pull --ff-only origin "${BRANCH}" 2>&1 || true
+                fi
+                return 0
               fi
-            else
-              git fetch --all --prune
-              git pull --ff-only origin "${BRANCH}"
-            fi
+
+              echo "缺少 deploy 脚本，同步代码..."
+              if [ ! -d .git ]; then
+                if [ -z "$(ls -A 2>/dev/null | grep -v '^\.env$' || true)" ]; then
+                  git clone --depth 1 --branch "${BRANCH}" "${REPO}" .
+                else
+                  git init
+                  git remote add origin "${REPO}" 2>/dev/null || git remote set-url origin "${REPO}"
+                  git fetch --depth 1 origin "${BRANCH}"
+                  git checkout -f "FETCH_HEAD"
+                fi
+              else
+                git fetch --all --prune
+                git checkout -f "origin/${BRANCH}" 2>/dev/null || git checkout -f "FETCH_HEAD" 2>/dev/null || git pull --ff-only origin "${BRANCH}"
+              fi
+            }
+
+            sync_repo || {
+              echo "警告: git 同步失败（私有仓库需在服务器配置 deploy key）"
+              echo "若 scripts/deploy-server.sh 仍不存在，请 SSH 登录服务器手动 git pull"
+            }
 
             if [ ! -f scripts/deploy-server.sh ]; then
               echo "错误: scripts/deploy-server.sh 不存在"
-              echo "当前目录内容:"
               ls -la
               ls -la scripts 2>/dev/null || true
               exit 1

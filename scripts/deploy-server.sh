@@ -26,7 +26,13 @@ fi
 
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   echo "[deploy-server] git pull（仅更新 compose/脚本，不重置数据库）..."
-  git pull --ff-only || true
+  export GIT_TERMINAL_PROMPT=0
+  git fetch origin master 2>/dev/null || git fetch --all --prune 2>/dev/null || true
+  if ! git symbolic-ref -q HEAD >/dev/null 2>&1; then
+    echo "[deploy-server] 修复 detached HEAD → master"
+    git checkout -B master origin/master 2>/dev/null || git checkout -B master FETCH_HEAD 2>/dev/null || true
+  fi
+  git pull --ff-only origin master 2>/dev/null || true
 fi
 
 echo "[deploy-server] pull 镜像..."
