@@ -34,10 +34,10 @@ env:
   PYTHON_BASE: docker.io/library/python:3.11-slim-bookworm
   NODE_BASE: docker.io/library/node:18-alpine
   NGINX_BASE: docker.io/library/nginx:stable-alpine
-  SSH_HOST: ${{ vars.SSH_HOST || '8.218.11.250' }}
-  SSH_USER: ${{ vars.SSH_USER || 'root' }}
-  SSH_DEPLOY_PATH: ${{ vars.SSH_DEPLOY_PATH || '/root/workspace' }}
-  DEPLOY_URL: ${{ vars.DEPLOY_URL || 'http://8.218.11.250/' }}
+  SSH_HOST: ${{ vars.SSH_HOST || secrets.SSH_HOST || '8.218.11.250' }}
+  SSH_USER: ${{ vars.SSH_USER || secrets.SSH_USER || 'root' }}
+  SSH_DEPLOY_PATH: ${{ vars.SSH_DEPLOY_PATH || secrets.SSH_DEPLOY_PATH || '/root/workspace' }}
+  DEPLOY_URL: ${{ vars.DEPLOY_URL || secrets.DEPLOY_URL || 'http://8.218.11.250/' }}
 
 jobs:
   gate:
@@ -185,7 +185,9 @@ jobs:
           echo '```bash' >> "$GITHUB_STEP_SUMMARY"
           echo "git pull && ./scripts/deploy-server.sh" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          if [ "${{ vars.ENABLE_SSH_DEPLOY }}" = "true" ]; then
+          if [ "${{ vars.ENABLE_SSH_DEPLOY }}" = "false" ] || [ "${{ secrets.ENABLE_SSH_DEPLOY }}" = "false" ]; then
+            echo "SSH 部署已关闭（ENABLE_SSH_DEPLOY=false）" >> "$GITHUB_STEP_SUMMARY"
+          else
             echo "" >> "$GITHUB_STEP_SUMMARY"
             echo "SSH 部署：${{ env.DEPLOY_URL }}" >> "$GITHUB_STEP_SUMMARY"
           fi
@@ -194,21 +196,40 @@ jobs:
     name: SSH 部署生产服务器
     runs-on: ubuntu-latest
     needs: publish
+    # 默认开启；仅手动 skip_deploy 或显式 ENABLE_SSH_DEPLOY=false 时跳过
     if: >
-      vars.ENABLE_SSH_DEPLOY == 'true' &&
-      (github.event_name != 'workflow_dispatch' || github.event.inputs.skip_deploy != 'true')
+      github.event_name != 'workflow_dispatch' || github.event.inputs.skip_deploy != 'true'
     steps:
+      - name: 是否启用 SSH 部署
+        id: deploy_gate
+        env:
+          ENABLE_VAR: ${{ vars.ENABLE_SSH_DEPLOY }}
+          ENABLE_SECRET: ${{ secrets.ENABLE_SSH_DEPLOY }}
+        run: |
+          if [ "$ENABLE_VAR" = "false" ] || [ "$ENABLE_SECRET" = "false" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "ENABLE_SSH_DEPLOY=false，跳过 SSH 部署"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "SSH 部署已启用（未设置 ENABLE_SSH_DEPLOY 时默认开启）"
+          fi
+
       - name: 检查 SSH Secret
+        id: ssh
+        if: steps.deploy_gate.outputs.enabled == 'true'
         env:
           SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
           if [ -z "$SSH_KEY" ]; then
-            echo "::error::未配置 SSH_PRIVATE_KEY，见 docs/DEPLOY_SSH.md"
-            exit 1
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::未配置 SSH_PRIVATE_KEY，跳过 SSH 部署。见 docs/DEPLOY_SSH.md"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "SSH 目标: ${{ env.SSH_USER }}@${{ env.SSH_HOST }}:${{ env.SSH_DEPLOY_PATH }}"
           fi
-          echo "SSH 目标: ${{ env.SSH_USER }}@${{ env.SSH_HOST }}:${{ env.SSH_DEPLOY_PATH }}"
 
       - name: 远程 pull 镜像并重启
+        if: steps.deploy_gate.outputs.enabled == 'true' && steps.ssh.outputs.configured == 'true'
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ env.SSH_HOST }}
@@ -228,10 +249,12 @@ jobs:
               git fetch --all --prune
               git pull --ff-only || true
             fi
-            chmod +x scripts/deploy-server.sh
+            find scripts -type f -name '*.sh' -exec sed -i 's/\r$//' {} + 2>/dev/null || true
+            chmod +x scripts/deploy-server.sh scripts/bootstrap-db.sh 2>/dev/null || true
             ./scripts/deploy-server.sh
 
       - name: 健康检查
+        if: steps.deploy_gate.outputs.enabled == 'true' && steps.ssh.outputs.configured == 'true'
         run: |
           for i in $(seq 1 12); do
             if curl -fsS --max-time 10 "${{ env.DEPLOY_URL }}" >/dev/null; then
@@ -244,6 +267,7 @@ jobs:
           echo "::warning::HTTP 健康检查超时，请登录服务器 docker compose ps 排查"
 
       - name: 部署摘要
+        if: steps.deploy_gate.outputs.enabled == 'true' && steps.ssh.outputs.configured == 'true'
         run: |
           echo "## SSH 部署" >> "$GITHUB_STEP_SUMMARY"
           echo "- 服务器: \`${{ env.SSH_USER }}@${{ env.SSH_HOST }}:${{ env.SSH_DEPLOY_PATH }}\`" >> "$GITHUB_STEP_SUMMARY"
