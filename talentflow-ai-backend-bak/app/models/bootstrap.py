@@ -9,3 +9,4 @@ def load_all_models() -> None:
     from app.models.application import Application  # noqa: F401
     from app.models.user_resume_cache import UserResumeCache  # noqa: F401
     from app.models.apply_task import ApplyTask  # noqa: F401
+    from app.models.user_profile import UserProfile  # noqa: F401

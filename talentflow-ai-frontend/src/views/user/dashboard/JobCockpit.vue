@@ -19,9 +19,8 @@
       </el-col>
     </el-row>
 
-    <el-row :gutter="20" class="main-content">
-      <!-- 2. 左侧核心功能区 -->
-      <el-col :span="16">
+    <el-row :gutter="20" class="function-row">
+      <el-col :span="24">
         <el-card shadow="never" class="function-card">
           <template #header>
             <div class="card-header">
@@ -44,76 +43,111 @@
           </div>
         </el-card>
       </el-col>
+    </el-row>
 
-      <!-- 3. 右侧智能推荐区 -->
-      <el-col :span="8">
-        <el-card shadow="never" class="recommend-card" v-loading="pageLoading">
-          <template #header>
-            <div class="card-header">
-              <div class="header-title">
-                <span>平台推荐</span>
-                <el-tooltip content="基于您的简历和RAG技术智能匹配">
-                  <el-icon class="question-icon"><QuestionFilled /></el-icon>
-                </el-tooltip>
-              </div>
-              <el-tooltip content="刷新推荐列表">
-                <el-icon 
-                  class="refresh-icon" 
-                  :class="{ 'is-rotating': pageLoading }" 
-                  @click="fetchRecommendations(true)"
-                >
-                  <Refresh />
-                </el-icon>
-              </el-tooltip>
+    <el-row :gutter="20" class="recommend-row">
+      <el-col :span="9" class="ref-column">
+        <RecommendReferencePanel
+          mode="resume"
+          :data="myResume || {}"
+          :loading="resumeLoading"
+          title="我的简历"
+          badge="对照"
+          badge-type="success"
+          :empty-text="resumeEmptyHint"
+        />
+        <el-button v-if="!myResume && !resumeLoading" type="primary" link class="go-resume-btn" @click="goToResume">
+          去创建/完善简历 →
+        </el-button>
+      </el-col>
+
+      <el-col :span="15" class="list-column">
+        <section class="list-panel" v-loading="pageLoading && recommendedJobs.length === 0">
+          <div class="list-panel-header">
+            <div class="header-title">
+              <span class="header-main">平台推荐</span>
+              <el-tag size="small" type="info" effect="plain" round>已展示 {{ recommendedJobs.length }} 条</el-tag>
+              <el-tag v-if="sessionStatus === 'rerank_queued'" size="small" type="info" effect="plain" round>
+                排队中
+              </el-tag>
+              <el-tag v-else-if="sessionStatus === 'reranking'" size="small" type="warning" effect="plain" round>
+                精排中
+              </el-tag>
+              <el-tag v-else-if="rerankApplied" size="small" type="success" effect="plain" round>
+                已精排
+              </el-tag>
+              <el-tag v-else-if="rerankAvailable && !rerankApplied" size="small" type="warning" effect="plain" round>
+                精排已完成
+              </el-tag>
+              <el-tag v-else size="small" type="info" effect="plain" round>
+                粗排
+              </el-tag>
             </div>
-          </template>
-
-          <div class="scroll-container">
-            <el-pull-refresh v-model="isRefreshing" @refresh="onRefresh" :pull-distance="60">
-              <!-- 空状态 -->
-              <div v-if="recommendedJobs.length === 0" class="empty-jobs">
-                <el-empty :image-size="100" description="暂无推荐职位">
-                  <el-button type="primary" @click="fetchRecommendations(true)">点击刷新</el-button>
-                </el-empty>
-              </div>
-
-              <!-- 职位列表 -->
-              <div v-else class="job-list">
-                <div v-for="(item, index) in recommendedJobs" :key="item.job?.id || item.job_id || index" class="job-item">
-                  <div class="score-tag">匹配度 {{ item.score }}%</div>
-                  <h3 class="job-title">{{ item.job?.title || item.job_title || '未知职位' }}</h3>
-                  <div class="job-meta">
-                    <span>{{ item.job?.company || item.company || '未知公司' }}</span>
-                    <span class="salary">{{ item.job?.salary || item.salary || '面议' }}</span>
-                  </div>
-                  <div class="skills">
-                    <el-tag 
-                      v-for="skill in item.matched_skills" 
-                      :key="skill" 
-                      size="small" 
-                      class="skill-tag"
-                    >
-                      {{ skill }}
-                    </el-tag>
-                  </div>
-                  <div class="action-area">
-                    <el-button 
-                      type="primary" 
-                      link 
-                      :loading="item.loading" 
-                      @click="handleSmartApply(item)"
-                    >
-                      {{ item.loading ? 'AI处理中...' : '一键智能投递' }}
-                    </el-button>
-                  </div>
-                  <el-divider />
-                </div>
-              </div>
-            </el-pull-refresh>
+            <div class="header-actions">
+              <el-button
+                v-if="sessionId && !rerankApplied"
+                type="primary"
+                size="small"
+                round
+                :loading="applyingRerank || sessionStatus === 'reranking' || sessionStatus === 'rerank_queued'"
+                :disabled="sessionStatus === 'reranking' || sessionStatus === 'rerank_queued'"
+                @click="applyRerankSort"
+              >
+                {{ rerankButtonLabel }}
+              </el-button>
+              <el-button circle size="small" :loading="pageLoading" @click="startSession(true)">
+                <el-icon><Refresh /></el-icon>
+              </el-button>
+            </div>
           </div>
-        </el-card>
+
+          <div ref="scrollRef" class="scroll-container" @scroll="onScroll">
+            <el-empty v-if="recommendedJobs.length === 0 && !pageLoading" description="暂无推荐职位">
+              <el-button type="primary" round @click="startSession(true)">开始推荐</el-button>
+            </el-empty>
+
+            <div v-else class="match-list">
+              <RecommendMatchCard
+                v-for="(item, index) in recommendedJobs"
+                :key="item.job?.id || item.job_id || index"
+                :item="item"
+                :title="item.job?.title || item.job_title || '未知职位'"
+                :subtitle="item.job?.company || item.company || '未知公司'"
+                :extra="[item.job?.salary || item.salary, item.distance_text ? `距您${item.distance_text}` : ''].filter(Boolean).join(' · ')"
+              >
+                <template #actions>
+                  <el-button type="primary" link @click="openJobDetail(item)">查看对照</el-button>
+                  <el-button type="primary" link :loading="item.loading" @click="handleSmartApply(item)">
+                    {{ item.loading ? '投递中...' : '智能投递' }}
+                  </el-button>
+                </template>
+              </RecommendMatchCard>
+
+              <div v-if="loadingMore" class="load-more-hint">
+                <el-icon class="is-loading"><Refresh /></el-icon> 加载更多...
+              </div>
+              <div v-else-if="hasMore && recommendedJobs.length" class="load-more-hint">
+                向下滚动加载更多
+              </div>
+              <div v-else-if="!hasMore && recommendedJobs.length" class="load-more-hint muted">
+                已加载全部推荐
+              </div>
+            </div>
+          </div>
+        </section>
       </el-col>
     </el-row>
+
+    <el-dialog v-model="jobDetailVisible" title="职位与简历对照" width="960px" destroy-on-close align-center>
+      <div class="dialog-compare">
+        <div class="dialog-ref">
+          <RecommendReferencePanel mode="resume" :data="myResume || {}" title="我的简历" badge="CV" compact />
+        </div>
+        <div class="dialog-job">
+          <RecommendReferencePanel mode="job" :data="selectedJob || {}" title="职位要求" badge="JD" compact />
+        </div>
+      </div>
+    </el-dialog>
 
     <el-dialog
       v-model="showResumeDialog"
@@ -169,31 +203,61 @@ import {
   Search, 
   List, 
   Document, 
-  QuestionFilled, 
   Refresh 
 } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 
-// 1. 引入 Pinia Store
-// 注意：请确保路径正确，通常位于 src/store/
+import RecommendReferencePanel from '@/components/RecommendReferencePanel.vue'
+import RecommendMatchCard from '@/components/RecommendMatchCard.vue'
 import { useUserStore } from '../../../store/user'
-import { useResumeStore } from '../../../store/resume' // 需要创建这个文件
-
-// 2. 引入 API (请确保路径正确)
-import { submitRecommendTask, pollRecommendResult, checkRecommendStatus } from '../../../api/user'
-import { getResumeListAPI} from '../../../api/resume'
+import {
+  createJobRecommendSession,
+  getJobRecommendSessionMore,
+  getJobRecommendSessionStatus,
+  applyJobRecommendSessionRerank,
+} from '../../../api/user'
+import { getResumeListAPI, getResumeDetailAPI } from '../../../api/resume'
 import { startSmartApplyBackground } from '../../../utils/smartApplyTaskRunner'
-import { wirePollToProgress } from '../../../utils/taskProgressRunner'
+
+const PAGE_SIZE = 10
+const APPLY_RERANK_LIMIT = 50
+const RERANK_POLL_INTERVAL_MS = 3000
+const RERANK_QUEUE_MAX_WAIT_MS = 900000
+const RERANK_PROCESS_MAX_WAIT_MS = 360000
 
 const router = useRouter()
 const userStore = useUserStore()
-const resumeStore = useResumeStore()
 const taskProgress = inject('parseProgress', null)
 
-// --- 数据定义 ---
 const pageLoading = ref(false)
-const isRefreshing = ref(false)
+const loadingMore = ref(false)
 const recommendedJobs = ref([])
+const scrollRef = ref(null)
+
+const sessionId = ref(null)
+const hasMore = ref(false)
+const ranking = ref('coarse')
+const sessionStatus = ref('coarse_ready')
+const rerankAvailable = ref(false)
+const rerankApplied = ref(false)
+const applyingRerank = ref(false)
+
+let rerankPollTimer = null
+
+const rerankButtonLabel = computed(() => {
+  if (sessionStatus.value === 'rerank_queued') return '排队中...'
+  if (sessionStatus.value === 'reranking' || applyingRerank.value) return '精排中...'
+  if (rerankAvailable.value && !rerankApplied.value) return '应用精排'
+  return '启用精排'
+})
+const myResume = ref(null)
+const resumeLoading = ref(false)
+const jobDetailVisible = ref(false)
+const selectedJob = ref(null)
+
+const resumeEmptyHint = computed(() =>
+  resumeLoading.value ? '加载简历中...' : '暂无简历，推荐将基于空简历匹配，请先创建简历'
+)
 
 // 顶部统计数据
 const statsData = ref([
@@ -203,163 +267,301 @@ const statsData = ref([
   { label: '待处理事项', value: 2, icon: 'List', color: '#F56C6C' },
 ])
 
-// --- 核心逻辑：获取用户 ID (基于你提供的 Store 结构) ---
-// 因为 userInfo 是对象，所以取 id 字段
 const currentUserId = computed(() => userStore.userInfo?.id)
 
-// --- 页面跳转 ---
+const shownJobIds = computed(() =>
+  recommendedJobs.value.map((x) => x.job?.id || x.job_id).filter(Boolean)
+)
+
 const goToTaskHall = () => router.push('/dashboard/jobs/list')
 const goToMyApplications = () => router.push('/dashboard/applications')
 const goToResume = () => router.push('/dashboard/resume')
 
-// --- 缓存相关常量 ---
-const CACHE_KEY_PREFIX = 'recommend_'
-const CACHE_EXPIRE_MS = 10 * 60 * 1000 // 缓存10分钟有效
+const CACHE_KEY_PREFIX = computed(() => `job_recommend_${currentUserId.value}_`)
 
-// --- 当前轮询的取消函数 ---
-let cancelPolling = null
+const getCacheKey = (type) => `${CACHE_KEY_PREFIX.value}${type}`
 
-// --- 缓存工具函数 ---
-const getCacheKey = (type) => `${CACHE_KEY_PREFIX}${currentUserId.value}_${type}`
-
-const saveCache = (type, data) => {
+const saveSessionCache = () => {
   try {
-    sessionStorage.setItem(getCacheKey(type), JSON.stringify(data))
-  } catch (e) { /* ignore */ }
+    sessionStorage.setItem(getCacheKey('session_id'), sessionId.value || '')
+    sessionStorage.setItem(getCacheKey('result'), JSON.stringify(recommendedJobs.value))
+    sessionStorage.setItem(getCacheKey('has_more'), hasMore.value ? '1' : '0')
+    sessionStorage.setItem(getCacheKey('ranking'), ranking.value || 'coarse')
+    sessionStorage.setItem(getCacheKey('session_status'), sessionStatus.value || 'coarse_ready')
+    sessionStorage.setItem(getCacheKey('rerank_applied'), rerankApplied.value ? '1' : '0')
+    sessionStorage.setItem(getCacheKey('time'), String(Date.now()))
+  } catch (_) {}
 }
 
-const loadCache = (type) => {
+const SESSION_CACHE_TTL_MS = 50 * 60 * 1000
+
+const loadSessionCache = () => {
   try {
-    const raw = sessionStorage.getItem(getCacheKey(type))
-    return raw ? JSON.parse(raw) : null
-  } catch (e) { return null }
+    const sid = sessionStorage.getItem(getCacheKey('session_id'))
+    const raw = sessionStorage.getItem(getCacheKey('result'))
+    const result = raw ? JSON.parse(raw) : null
+    const savedAt = Number(sessionStorage.getItem(getCacheKey('time')) || 0)
+    if (!sid || !savedAt || Date.now() - savedAt > SESSION_CACHE_TTL_MS) {
+      return null
+    }
+    return {
+      sessionId: sid,
+      result,
+      hasMore: sessionStorage.getItem(getCacheKey('has_more')) !== '0',
+      ranking: sessionStorage.getItem(getCacheKey('ranking')) || 'coarse',
+      sessionStatus: sessionStorage.getItem(getCacheKey('session_status')) || 'coarse_ready',
+      rerankApplied: sessionStorage.getItem(getCacheKey('rerank_applied')) === '1',
+    }
+  } catch {
+    return null
+  }
 }
 
-const clearCache = () => {
+const clearSessionCache = () => {
   try {
-    sessionStorage.removeItem(getCacheKey('task_id'))
-    sessionStorage.removeItem(getCacheKey('result'))
-    sessionStorage.removeItem(getCacheKey('time'))
-  } catch (e) { /* ignore */ }
+    for (const key of ['session_id', 'result', 'has_more', 'ranking', 'session_status', 'rerank_applied', 'time']) {
+      sessionStorage.removeItem(getCacheKey(key))
+    }
+  } catch (_) {}
 }
-// --- 核心逻辑：获取推荐列表（异步 Celery + 缓存模式）---
-const fetchRecommendations = async (forceRefresh = false) => {
-  // 如果强制刷新，清除旧缓存
+
+/** 清除旧版 Celery 推荐缓存，避免与新版会话接口混用 */
+const clearLegacyRecommendCache = () => {
+  if (!currentUserId.value) return
+  const uid = currentUserId.value
+  try {
+    for (const key of ['task_id', 'result', 'time']) {
+      sessionStorage.removeItem(`recommend_${uid}_${key}`)
+    }
+  } catch (_) {}
+}
+
+const mergeResults = (items) => {
+  const seen = new Set(shownJobIds.value)
+  const merged = [...recommendedJobs.value]
+  for (const item of items || []) {
+    const id = item.job?.id || item.job_id
+    if (!id || seen.has(id)) continue
+    seen.add(id)
+    merged.push({ ...item, loading: false })
+  }
+  recommendedJobs.value = merged
+}
+
+const applyRerankResults = async () => {
+  const limit = Math.min(Math.max(recommendedJobs.value.length, PAGE_SIZE), APPLY_RERANK_LIMIT)
+  const res = await applyJobRecommendSessionRerank(sessionId.value, limit)
+  if (res.status === 'processing' || res.session_status === 'reranking' || res.session_status === 'rerank_queued') {
+    return false
+  }
+  recommendedJobs.value = (res.data || []).map((job) => ({ ...job, loading: false }))
+  hasMore.value = !!res.has_more
+  ranking.value = 'rerank'
+  rerankApplied.value = true
+  rerankAvailable.value = true
+  sessionStatus.value = 'rerank_ready'
+  saveSessionCache()
+  if (scrollRef.value) scrollRef.value.scrollTop = 0
+  return true
+}
+
+const beginRerankWatch = () => {
+  if (!sessionId.value || rerankPollTimer) return
+  const startedAt = Date.now()
+  let processingStartedAt = null
+  const tick = async () => {
+    try {
+      const res = await getJobRecommendSessionStatus(sessionId.value)
+      sessionStatus.value = res.session_status || sessionStatus.value
+      rerankAvailable.value = !!(res.rerank_available ?? (sessionStatus.value === 'rerank_ready'))
+      if (sessionStatus.value === 'rerank_ready') {
+        stopRerankWatch()
+        applyingRerank.value = true
+        try {
+          const ok = await applyRerankResults()
+          if (ok) ElMessage.success('已按精排结果重新排序')
+        } finally {
+          applyingRerank.value = false
+        }
+        return
+      }
+      const totalElapsed = Date.now() - startedAt
+      if (sessionStatus.value === 'reranking') {
+        if (!processingStartedAt) processingStartedAt = Date.now()
+        const procElapsed = Date.now() - processingStartedAt
+        if (procElapsed > RERANK_PROCESS_MAX_WAIT_MS || totalElapsed > RERANK_QUEUE_MAX_WAIT_MS) {
+          stopRerankWatch()
+          sessionStatus.value = 'coarse_ready'
+          ElMessage.error(procElapsed > RERANK_PROCESS_MAX_WAIT_MS ? '精排处理超时，请稍后重试' : '精排排队超时，请稍后重试')
+        }
+        return
+      }
+      if (sessionStatus.value === 'rerank_queued') {
+        if (totalElapsed > RERANK_QUEUE_MAX_WAIT_MS) {
+          stopRerankWatch()
+          sessionStatus.value = 'coarse_ready'
+          ElMessage.error('精排排队超时，请稍后重试')
+        }
+        return
+      }
+      stopRerankWatch()
+      if (sessionStatus.value !== 'rerank_ready') {
+        sessionStatus.value = 'coarse_ready'
+        ElMessage.error('精排失败，请稍后重试')
+      }
+    } catch {
+      stopRerankWatch()
+      sessionStatus.value = 'coarse_ready'
+      ElMessage.error('精排状态查询失败')
+    }
+  }
+  rerankPollTimer = setInterval(tick, RERANK_POLL_INTERVAL_MS)
+  tick()
+}
+
+const stopRerankWatch = () => {
+  if (rerankPollTimer) {
+    clearInterval(rerankPollTimer)
+    rerankPollTimer = null
+  }
+}
+
+const applyRerankSort = async () => {
+  if (!sessionId.value || applyingRerank.value) return
+  applyingRerank.value = true
+  try {
+    if (sessionStatus.value === 'rerank_ready' && rerankAvailable.value) {
+      const ok = await applyRerankResults()
+      if (ok) ElMessage.success('已按精排结果重新排序')
+      return
+    }
+    const limit = Math.min(Math.max(recommendedJobs.value.length, PAGE_SIZE), APPLY_RERANK_LIMIT)
+    const res = await applyJobRecommendSessionRerank(sessionId.value, limit)
+    if (res.status === 'processing' || res.session_status === 'reranking' || res.session_status === 'rerank_queued') {
+      sessionStatus.value = res.session_status || 'rerank_queued'
+      beginRerankWatch()
+      ElMessage.info('精排已启动，完成后将自动更新排序')
+      return
+    }
+    const ok = await applyRerankResults()
+    if (ok) ElMessage.success('已按精排结果重新排序')
+  } catch (error) {
+    const detail = error?.response?.data?.detail || error.message || '未知错误'
+    ElMessage.error('应用精排失败: ' + detail)
+  } finally {
+    applyingRerank.value = false
+  }
+}
+
+const startSession = async (forceRefresh = false) => {
+  if (!currentUserId.value) {
+    ElMessage.warning('请先登录')
+    router.push('/login')
+    return
+  }
+
+  clearLegacyRecommendCache()
+
   if (forceRefresh) {
-    if (cancelPolling) { cancelPolling(); cancelPolling = null }
-    clearCache()
+    clearSessionCache()
+    sessionId.value = null
+    recommendedJobs.value = []
+    hasMore.value = false
+    rerankApplied.value = false
+    rerankAvailable.value = false
+  }
+
+  if (!forceRefresh) {
+    const cached = loadSessionCache()
+    if (cached?.sessionId && Array.isArray(cached.result) && cached.result.length) {
+      try {
+        const statusRes = await getJobRecommendSessionStatus(cached.sessionId)
+        sessionId.value = cached.sessionId
+        recommendedJobs.value = cached.result.map((job) => ({ ...job, loading: false }))
+        hasMore.value = cached.hasMore
+        ranking.value = statusRes.ranking || cached.ranking || 'coarse'
+        sessionStatus.value = statusRes.session_status || cached.sessionStatus || 'coarse_ready'
+        rerankApplied.value = !!(statusRes.rerank_applied ?? cached.rerankApplied)
+        rerankAvailable.value = !!(statusRes.rerank_available ?? (sessionStatus.value === 'rerank_ready'))
+        if (rerankApplied.value) ranking.value = 'rerank'
+        if (sessionStatus.value === 'reranking' || sessionStatus.value === 'rerank_queued') beginRerankWatch()
+        return
+      } catch {
+        clearSessionCache()
+      }
+    }
   }
 
   pageLoading.value = true
   try {
-    if (!currentUserId.value) {
-      ElMessage.warning('请先登录')
-      router.push('/login')
-      return
+    const res = await createJobRecommendSession(PAGE_SIZE)
+    if (!res?.session_id) {
+      throw new Error('推荐会话创建失败，请确认后端已重启')
     }
-
-    // 第一步：检查是否有缓存结果（10分钟内有效）
-    const cachedTime = loadCache('time')
-    const cachedResult = loadCache('result')
-    if (cachedResult && cachedTime && (Date.now() - cachedTime < CACHE_EXPIRE_MS) && !forceRefresh) {
-      console.log('[推荐] 使用缓存结果')
-      recommendedJobs.value = cachedResult.map(job => ({ ...job, loading: false }))
-      return
-    }
-
-    // 第二步：检查是否有进行中的任务
-    let taskId = loadCache('task_id')
-    if (taskId && !forceRefresh) {
-      try {
-        const status = await checkRecommendStatus(taskId)
-        if (status.status === 'success' && status.data) {
-          // 任务已完成，直接用结果
-          console.log('[推荐] 缓存任务已完成，直接使用结果')
-          const data = Array.isArray(status.data) ? status.data : []
-          recommendedJobs.value = data.map(job => ({ ...job, loading: false }))
-          saveCache('result', data)
-          saveCache('time', Date.now())
-          return
-        } else if (status.status === 'processing') {
-          // 任务还在跑，继续轮询
-          console.log('[推荐] 缓存任务进行中，恢复轮询:', taskId)
-        } else {
-          // 任务失败，重新提交
-          taskId = null
-        }
-      } catch (e) {
-        // 查询失败，重新提交
-        console.warn('[推荐] 查询缓存任务状态失败，重新提交')
-        taskId = null
-      }
-    } else {
-      taskId = null
-    }
-
-    // 第三步：如果没有可用任务，提交新任务
-    if (!taskId) {
-      const submitRes = await submitRecommendTask(currentUserId.value)
-      taskId = submitRes.task_id
-      console.log('[推荐] 提交新任务，task_id:', taskId)
-      saveCache('task_id', taskId)
-    }
-
-    // 第四步：轮询结果（全局进度条）
-    const pollPromise = pollRecommendResult(taskId)
-    cancelPolling = pollPromise.cancel
-
-    wirePollToProgress(pollPromise, taskProgress, {
-      showMessage: 'AI 正在计算职位推荐...',
-      taskType: 'recommend',
-      completeHint: '推荐列表已更新',
-      completeButtonText: '',
-    })
-
-    const resultData = await pollPromise
-    cancelPolling = null
-
-    console.log('[推荐] 拿到结果:', resultData)
-
-    taskProgress?.update({
-      status: 'success',
-      message: `已匹配 ${Array.isArray(resultData) ? resultData.length : 0} 个推荐职位`,
-      percent: 100,
-      taskType: 'recommend',
-      data: resultData,
-      completeHint: '列表已刷新',
-      completeButtonText: '',
-    })
-
-    // 第五步：处理并缓存数据
-    if (resultData && Array.isArray(resultData)) {
-      recommendedJobs.value = resultData.map(job => ({ ...job, loading: false }))
-      saveCache('result', resultData)
-      saveCache('time', Date.now())
-    } else {
-      recommendedJobs.value = []
-    }
+    sessionId.value = res.session_id
+    recommendedJobs.value = (res.data || []).map((job) => ({ ...job, loading: false }))
+    hasMore.value = !!res.has_more
+    ranking.value = res.ranking || 'coarse'
+    sessionStatus.value = res.session_status || 'coarse_ready'
+    rerankApplied.value = false
+    rerankAvailable.value = false
+    saveSessionCache()
   } catch (error) {
-    cancelPolling = null
-    if (error.message === '已取消') return // 页面切换取消，不报错
-    console.error("获取推荐列表失败:", error)
-    ElMessage.error('加载推荐职位失败: ' + (error.message || '未知错误'))
+    const detail = error?.response?.data?.detail || error.message || '未知错误'
+    ElMessage.error('加载推荐职位失败: ' + detail)
   } finally {
     pageLoading.value = false
-    isRefreshing.value = false
   }
 }
 
-const onRefresh = () => {
-  fetchRecommendations(true) // 强制刷新
+const loadMore = async () => {
+  if (!sessionId.value || !hasMore.value || loadingMore.value || pageLoading.value) return
+  loadingMore.value = true
+  try {
+    const res = await getJobRecommendSessionMore(sessionId.value, shownJobIds.value, PAGE_SIZE)
+    mergeResults(res.data || [])
+    hasMore.value = !!res.has_more
+    ranking.value = res.ranking || ranking.value
+    sessionStatus.value = res.session_status || sessionStatus.value
+    saveSessionCache()
+  } catch (error) {
+    ElMessage.error('加载更多失败: ' + (error.message || '未知错误'))
+  } finally {
+    loadingMore.value = false
+  }
 }
 
-// --- 页面卸载时取消轮询 ---
-onUnmounted(() => {
-  if (cancelPolling) {
-    cancelPolling()
-    cancelPolling = null
+const onScroll = () => {
+  const el = scrollRef.value
+  if (!el || !hasMore.value || loadingMore.value) return
+  if (el.scrollTop + el.clientHeight >= el.scrollHeight - 80) {
+    loadMore()
   }
-})
+}
+
+const loadMyResume = async () => {
+  resumeLoading.value = true
+  try {
+    const list = await getResumeListAPI()
+    const resumes = Array.isArray(list) ? list : (list?.data || [])
+    if (!resumes.length) {
+      myResume.value = null
+      return
+    }
+    const pick = resumes.find((r) => r.is_default) || resumes[0]
+    const detail = await getResumeDetailAPI(pick.id)
+    myResume.value = detail?.data || detail || pick
+  } catch {
+    myResume.value = null
+  } finally {
+    resumeLoading.value = false
+  }
+}
+
+const openJobDetail = (item) => {
+  selectedJob.value = item.job || item
+  jobDetailVisible.value = true
+}
 
 // --- 核心逻辑：智能投递 ---
 // 状态变量
@@ -492,9 +694,14 @@ const executeApply = async (jobId, resumeId, jobDesc) => {
 //   }
 //}
 
-// --- 初始化 ---
-onMounted(() => {
-  fetchRecommendations(false) // 非强制刷新，优先使用缓存
+onMounted(async () => {
+  clearLegacyRecommendCache()
+  await loadMyResume()
+  startSession(false)
+})
+
+onUnmounted(() => {
+  stopRerankWatch()
 })
 </script>
 
@@ -538,13 +745,131 @@ onMounted(() => {
 }
 
 /* 主体布局 */
-.main-content {
+.function-row {
+  margin-bottom: 16px;
+}
+
+.recommend-row {
+  align-items: stretch;
+  margin-top: 4px;
+}
+
+.ref-column {
   display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ref-column :deep(.reference-panel) {
+  min-height: 620px;
+  max-height: calc(100vh - 220px);
+}
+
+.go-resume-btn {
+  align-self: flex-start;
+  margin-left: 8px;
+  font-size: 13px;
+}
+
+.list-column {
+  min-width: 0;
+}
+
+.list-panel {
+  min-height: 620px;
+  max-height: calc(100vh - 220px);
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.list-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f1f5f9;
+  background: #fafbfc;
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.header-main {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.match-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.scroll-container {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 20px 20px;
+}
+
+.dialog-compare {
+  display: flex;
+  gap: 20px;
+  align-items: stretch;
+  min-height: 440px;
+}
+
+.dialog-ref,
+.dialog-job {
+  flex: 1;
+  min-width: 0;
+  max-height: 560px;
+  overflow: hidden;
+}
+
+.load-more-hint {
+  text-align: center;
+  padding: 16px 0 4px;
+  color: #3b82f6;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.load-more-hint.muted {
+  color: #94a3b8;
+}
+
+@media (max-width: 900px) {
+  .dialog-compare {
+    flex-direction: column;
+  }
 }
 
 /* 左侧功能区 */
 .function-card {
-  border-radius: 8px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
 }
 .function-grid {
   display: flex;
@@ -567,49 +892,6 @@ onMounted(() => {
   margin-top: 10px;
   font-size: 16px;
   font-weight: 500;
-}
-
-/* 右侧推荐区 */
-.recommend-card {
-  border-radius: 8px;
-  height: 800px;
-  display: flex;
-  flex-direction: column;
-}
-
-/* 头部样式修改 */
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.header-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.question-icon {
-  color: #909399;
-  cursor: help;
-}
-
-/* 刷新按钮样式 */
-.refresh-icon {
-  font-size: 18px;
-  color: #909399;
-  cursor: pointer;
-  transition: transform 0.3s;
-}
-.refresh-icon:hover {
-  color: #409EFF;
-}
-/* 旋转动画 */
-.is-rotating {
-  animation: rotate 1s linear infinite;
-}
-@keyframes rotate {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
 }
 
 .resume-select-body {
@@ -672,61 +954,6 @@ onMounted(() => {
   margin-top: 4px;
 }
 
-/* 滚动容器 */
-.scroll-container {
-  flex: 1;
-  overflow-y: auto;
-  height: 100%;
-}
-.job-item {
-  margin-bottom: 10px;
-  position: relative;
-}
-.score-tag {
-  position: absolute;
-  top: 0;
-  right: 0;
-  background-color: #67C23A;
-  color: white;
-  font-size: 12px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-weight: bold;
-}
-.job-title {
-  font-size: 16px;
-  font-weight: bold;
-  color: #333;
-  margin: 0 0 8px 0;
-  line-height: 1.4;
-  padding-right: 60px;
-}
-.job-meta {
-  font-size: 13px;
-  color: #999;
-  margin-bottom: 10px;
-  display: flex;
-  justify-content: space-between;
-}
-.salary {
-  color: #F56C6C;
-  font-weight: bold;
-}
-.skills {
-  margin-bottom: 15px;
-}
-.skill-tag {
-  margin-right: 5px;
-  margin-bottom: 5px;
-  background-color: #f0f2f5;
-  color: #606266;
-  border: none;
-}
-.action-area {
-  text-align: right;
-}
-
-/* 滚动条样式 */
 .scroll-container::-webkit-scrollbar {
   width: 6px;
 }

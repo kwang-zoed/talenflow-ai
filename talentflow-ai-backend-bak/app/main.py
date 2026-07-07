@@ -19,12 +19,14 @@ from app.api.v1.mentor import (
     applications,
     dashboard,
     job_manage as hr_job_manage,
+    resume_recommend as hr_resume_recommend,
     task_manage as mentor_task_manage,
 )
 from app.api.v1.user import (
     applications as user_applications,
     job_list as user_job_list,
     job_recommend as user_job_recommend,
+    profile_manage as user_profile_manage,
     resume_manage as user_resume_manage,
     smart_apply as user_smart_apply,
     task_manage as user_task_manage,
@@ -53,12 +55,6 @@ async def _background_warmup() -> None:
 
         embed_documents(["warmup"])
         print("[MAIN] embedding 预热完成")
-
-        print("[MAIN] 后台预热 reranker...")
-        from app.rag.reranker import get_reranker
-
-        get_reranker()
-        print("[MAIN] reranker 预热完成")
 
         print("[MAIN] 后台初始化智能投递 LangGraph...")
         from app.agents.graph import init_smart_apply_graph
@@ -150,7 +146,10 @@ app.include_router(applications.router, prefix="/api/v1/hr", tags=["Mentor-投�
 app.include_router(hr_job_manage.router, prefix="/hr", tags=["HR-职位管理-兼容"])
 app.include_router(hr_job_manage.router, prefix="/api/v1/hr", tags=["HR-职位管理-兼容-v1"])
 app.include_router(hr_job_manage.router, prefix="/api/v1/mentor", tags=["Mentor-职位管理"])
+app.include_router(hr_resume_recommend.router, prefix="/api/v1/hr", tags=["HR-简历推荐"])
+app.include_router(hr_resume_recommend.router, prefix="/hr", tags=["HR-简历推荐-兼容"])
 app.include_router(user_resume_manage.router, prefix="/api/v1", tags=["用户端-简历管理"])
+app.include_router(user_profile_manage.router, prefix="/api/v1/user", tags=["用户端-个人资料"])
 app.include_router(user_task_manage.router, prefix="/api/v1/user/tasks", tags=["用户端-任务管理"])
 app.include_router(user_job_recommend.router, prefix="/api/v1/user", tags=["用户端-职位推荐"])
 app.include_router(user_applications.router, prefix="/api/v1/user", tags=["用户端-投递管理"])

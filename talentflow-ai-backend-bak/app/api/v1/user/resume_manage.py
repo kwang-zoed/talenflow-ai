@@ -6,6 +6,7 @@ from app.core import database, deps
 from app.crud import crud
 from app.models import base
 from app.schemas.resume_schema import ResumeRead, ResumeUpdate, ResumeCreate
+from app.services.location_service import apply_geocode_to_resume, get_or_create_user_profile, get_user_profile
 
 router = APIRouter()
 
@@ -66,8 +67,18 @@ def create_resume(
     
     create_dict = resume_data.model_dump()
     create_dict['user_id'] = current_user.id
-    
+    if 'experience' in create_dict and create_dict.get('experience') is not None:
+        try:
+            create_dict['experience_years'] = int(str(create_dict.pop('experience')).replace('年', '').strip() or 0)
+        except ValueError:
+            create_dict.pop('experience', None)
+
     db_resume = crud.create_resume(db, create_dict)
+    apply_geocode_to_resume(db_resume)
+    db.add(db_resume)
+    db.commit()
+    db.refresh(db_resume)
+    add_resume_to_vectorstore(db_resume)
     
     print(f"[USER RESUME DEBUG] 简历创建成功, ID: {db_resume.id}")
     print(f"{'=' * 60}\n")
@@ -97,9 +108,20 @@ def update_resume(
         raise HTTPException(status_code=404, detail="简历不存在或无权限")
     
     update_data = resume_data.model_dump(exclude_unset=True)
+    if 'experience' in update_data and update_data.get('experience') is not None:
+        try:
+            update_data['experience_years'] = int(str(update_data.pop('experience')).replace('年', '').strip() or 0)
+        except ValueError:
+            update_data.pop('experience', None)
     print(f"[USER RESUME DEBUG] 更新字段: {list(update_data.keys())}")
     
     db_updated = crud.update_resume(db, resume_id, update_data)
+    if db_updated:
+        apply_geocode_to_resume(db_updated)
+        db.add(db_updated)
+        db.commit()
+        db.refresh(db_updated)
+        add_resume_to_vectorstore(db_updated)
     
     print(f"[USER RESUME DEBUG] 简历更新成功")
     print(f"{'=' * 60}\n")
@@ -128,8 +150,8 @@ def delete_resume(
         raise HTTPException(status_code=404, detail="简历不存在或无权限")
     
     success = crud.delete_resume(db, resume_id)
-    
     if success:
+        remove_resume_from_vectorstore(resume_id)
         print(f"[USER RESUME DEBUG] 简历删除成功")
     print(f"{'=' * 60}\n")
     return None

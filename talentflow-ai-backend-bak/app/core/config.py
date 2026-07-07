@@ -31,7 +31,8 @@ class Settings(BaseSettings):
     # 安全配置
     SECRET_KEY: str = os.getenv("SECRET_KEY", "your_secret_key")
     ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 24 * 60
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+    REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
     API_KEY: str = os.getenv("OPENAI_API_KEY", "")
 
     # LangSmith（监控 LangGraph / LangChain 调用链）
@@ -54,7 +55,7 @@ class Settings(BaseSettings):
         "SQLITE_CHECKPOINT_PATH",
         os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "langgraph_checkpoints.sqlite"),
     )
-    # 为 false 时启动快、接口立即可用；为 true 时在后台预热 embedding/reranker/LangGraph
+    # 为 false 时启动快、接口立即可用；为 true 时在后台预热 embedding/LangGraph（reranker 仅在 Celery Worker 中按需加载）
     PRELOAD_MODELS_ON_STARTUP: bool = os.getenv("PRELOAD_MODELS_ON_STARTUP", "false").lower() in (
         "1",
         "true",
@@ -65,6 +66,14 @@ class Settings(BaseSettings):
         "1",
         "true",
         "yes",
+    )
+    # api | worker；未设置时由 reranker 模块按进程命令行自动判断
+    APP_PROCESS_ROLE: str = os.getenv("APP_PROCESS_ROLE", "")
+    RERANKER_LOAD_TIMEOUT: int = int(os.getenv("RERANKER_LOAD_TIMEOUT", "90"))
+
+    AMAP_WEB_KEY: str = os.getenv("AMAP_WEB_KEY", "")
+    AMAP_GEOCODE_ENABLED: bool = os.getenv("AMAP_GEOCODE_ENABLED", "true").lower() in (
+        "1", "true", "yes",
     )
 
     @property

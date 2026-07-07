@@ -80,8 +80,11 @@
         </el-table-column>
         
         <!-- 操作按钮 -->
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column label="操作" width="280" fixed="right">
           <template #default="scope">
+            <el-button type="success" size="small" @click="goRecommend(scope.row)">
+              智能推荐简历
+            </el-button>
             <el-button
               type="primary"
               size="small"
@@ -124,7 +127,10 @@
         
         <!-- 2. 新增：地点输入框 -->
         <el-form-item label="工作地点" prop="location">
-          <el-input v-model="form.location" placeholder="如：深圳、远程" />
+          <LocationPicker v-model:city="form.location" :show-address="false" city-placeholder="如：广东省/深圳市" />
+        </el-form-item>
+        <el-form-item label="详细工作地址">
+          <el-input v-model="form.work_address" placeholder="如：南山区科技园XX路XX号（选填，提高距离精度）" />
         </el-form-item>
 
         <el-form-item label="薪资范围" prop="salary">
@@ -322,10 +328,14 @@
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, inject } from 'vue';
+import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus, Search, UploadFilled, Document } from '@element-plus/icons-vue';
 import axios from '../../utils/request';
 import { hrSubmitParseTask, hrPollParseTaskResult, hrGetParseTaskStatus } from '../../api/job';
+import LocationPicker from '@/components/LocationPicker.vue';
+
+const router = useRouter();
 
 // --- 状态定义 ---
 const data = ref([]);
@@ -374,6 +384,7 @@ const initialForm = {
   salary: '',
   // 4. 新增：初始化新字段
   location: '',
+  work_address: '',
   experience_requirement: '',
   education_requirement: '',
   required_skills: '', // 字符串格式，提交时转数组
@@ -448,6 +459,10 @@ const handleViewFile = (filePath) => {
 };
 
 // --- 事件处理 ---
+const goRecommend = (row) => {
+  router.push(`/hr/jobs/${row.id}/recommend`);
+};
+
 const handleEdit = (row) => {
   // 重置表单状态
   Object.assign(form, initialForm);
@@ -641,6 +656,7 @@ const handleSubmit = () => {
       formData.append('company', form.company);
       formData.append('salary', form.salary); // 注意：后端字段名为 salary_range
       formData.append('location', form.location);
+      formData.append('work_address', form.work_address || '');
       formData.append('experience_requirement', form.experience_requirement);
       formData.append('education_requirement', form.education_requirement);
       formData.append('description', form.description);

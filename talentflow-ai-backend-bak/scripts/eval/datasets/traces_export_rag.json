@@ -1,0 +1,86 @@
+{
+  "source": "eval_rag",
+  "count": 5,
+  "examples": [
+    {
+      "inputs": {
+        "query": "深圳 资深 Python 架构师",
+        "top_k": 5,
+        "trace_run_id": "019ea646-73ce-78d2-9157-886b5f1feb83",
+        "trace_source": "langsmith_eval_rag"
+      },
+      "outputs": {
+        "expected_job_ids": [
+          9006,
+          9001
+        ],
+        "keywords": [],
+        "annotation_note": "Top-2 检索 ID 自动预标注，必须人工复审"
+      }
+    },
+    {
+      "inputs": {
+        "query": "深圳 Java 后端 Spring Boot",
+        "top_k": 5,
+        "trace_run_id": "019ea646-73bb-78d3-9b92-3a98a7e74d57",
+        "trace_source": "langsmith_eval_rag"
+      },
+      "outputs": {
+        "expected_job_ids": [
+          9002,
+          9001
+        ],
+        "keywords": [],
+        "annotation_note": "Top-2 检索 ID 自动预标注，必须人工复审"
+      }
+    },
+    {
+      "inputs": {
+        "query": "东莞 Python Flask 开发",
+        "top_k": 5,
+        "trace_run_id": "019ea646-738e-78a3-9307-9f52645d4562",
+        "trace_source": "langsmith_eval_rag"
+      },
+      "outputs": {
+        "expected_job_ids": [
+          9010,
+          9001
+        ],
+        "keywords": [],
+        "annotation_note": "Top-2 检索 ID 自动预标注，必须人工复审"
+      }
+    },
+    {
+      "inputs": {
+        "query": "上海 资深 Java 架构师",
+        "top_k": 5,
+        "trace_run_id": "019ea646-736b-7280-88eb-c4fed45d6504",
+        "trace_source": "langsmith_eval_rag"
+      },
+      "outputs": {
+        "expected_job_ids": [
+          9011,
+          9006
+        ],
+        "keywords": [],
+        "annotation_note": "Top-2 检索 ID 自动预标注，必须人工复审"
+      }
+    },
+    {
+      "inputs": {
+        "query": "应届生 Java 开发 杭州",
+        "top_k": 5,
+        "trace_run_id": "019ea646-7349-7310-b900-ab481b9792ef",
+        "trace_source": "langsmith_eval_rag"
+      },
+      "outputs": {
+        "expected_job_ids": [
+          9005,
+          9011
+        ],
+        "keywords": [],
+        "annotation_note": "Top-2 检索 ID 自动预标注，必须人工复审"
+      }
+    }
+  ]
+}

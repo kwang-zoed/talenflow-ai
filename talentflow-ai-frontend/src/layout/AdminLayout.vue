@@ -86,8 +86,6 @@ const handleCommand = (command) => {
 const handleLogout = () => {
   console.log('执行退出登录')
   // 直接清除，先跳过确认框验证逻辑
-  localStorage.removeItem('token')
-  localStorage.removeItem('user')
   userStore.logout()
   router.push('/login')
   ElMessage.success('已安全退出')

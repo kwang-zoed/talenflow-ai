@@ -9,6 +9,7 @@ from app.core import database, deps
 from app.crud import crud
 from app.schemas import resume_schema as schemas
 from app.utils.celery_task_status import build_celery_task_status
+from app.rag.vector_store import add_resume_to_vectorstore, remove_resume_from_vectorstore
 
 router = APIRouter()
 
@@ -102,6 +103,7 @@ def create_resume(
 ):
     """创建简历 - 管理员手动录入"""
     db_resume = crud.create_resume(db, resume_in)
+    add_resume_to_vectorstore(db_resume)
     return resume_to_dict(db_resume)
 
 
@@ -116,6 +118,7 @@ def update_resume(
     db_resume = crud.update_resume(db, resume_id, resume_in)
     if not db_resume:
         raise HTTPException(status_code=404, detail="简历不存在")
+    add_resume_to_vectorstore(db_resume)
     return resume_to_dict(db_resume)
 
 
@@ -129,6 +132,7 @@ def delete_resume(
     success = crud.delete_resume(db, resume_id)
     if not success:
         raise HTTPException(status_code=404, detail="简历不存在")
+    remove_resume_from_vectorstore(resume_id)
 
 
 @router.post("/resumes/parse", response_model=schemas.ResumeParsed, deprecated=True)

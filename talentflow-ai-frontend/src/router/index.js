@@ -21,6 +21,7 @@ import TaskBoard from '../views/user/dashboard/TaskBoard.vue'
 import JobCockpit from '../views/user/dashboard/JobCockpit.vue'
 import TaskDetail from '../views/user/dashboard/TaskDetail.vue'
 import ResumeManager from '../views/user/dashboard/ResumeManager.vue'
+import UserProfileSettings from '../views/user/dashboard/UserProfileSettings.vue'
 import Applications from '../views/user/dashboard/Applications.vue'
 import JobList from '../views/user/dashboard/JobList.vue'
 
@@ -76,6 +77,7 @@ const routes = [
           { path: 'jobs/list', name: 'JobList', component: JobList },
           { path: 'tasks/:id', name: 'TaskDetail', component: TaskDetail },
           { path: 'resume', name: 'resumes', component: ResumeManager },
+          { path: 'profile', name: 'UserProfile', component: UserProfileSettings },
           { path: 'applications', name: 'Applications', component: Applications },
         ]
       },
@@ -124,6 +126,13 @@ const routes = [
       { path: 'tasks', component: () => import('../views/hr/Task.vue'), meta: { title: '任务管理' } },
       { path: 'applications', component: () => import('../views/hr/Applications.vue'), meta: { title: '投递管理' } },
       { path: 'jobs', component: () => import('../views/hr/HrJobs.vue'), meta: { title: '岗位管理' } },
+      {
+        path: 'jobs/:jobId/recommend',
+        name: 'HrResumeRecommend',
+        component: () => import('../views/hr/ResumeRecommend.vue'),
+        props: true,
+        meta: { title: '简历推荐', role: 'hr' },
+      },
       { path: 'finance', component: () => import('../views/hr/Finance.vue'), meta: { title: '财务结算' } }
     ]
   },

@@ -3,7 +3,9 @@
     ref="progressBarRef" 
     @click-to-fill="handleProgressClickToFill"
     @open-review="handleOpenSmartApplyReview"
+    @go-to-task="handleProgressGoToTask"
   />
+  <HrRecommendTaskQueue />
   <SmartApplyReviewDialog ref="smartApplyReviewRef" />
   <router-view />
 </template>
@@ -12,10 +14,13 @@
 import { ref, provide, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import GlobalTaskProgress from './components/GlobalTaskProgress.vue'
+import HrRecommendTaskQueue from './components/HrRecommendTaskQueue.vue'
 import SmartApplyReviewDialog from './components/SmartApplyReviewDialog.vue'
 import { getParseTaskStatus, pollParseTaskResult } from './api/job'
 import { normalizeTaskStatus } from './utils/taskPoller'
 import { resumeStoredTaskPoll, clearTaskStorage } from './utils/taskProgressRunner'
+import { resumeAllHrResumeRecommendPolls, clearHrRecommendTasks, normalizeRecommendTaskQueue } from './utils/hrResumeRecommendTaskRunner'
+import { resumeAllSessionRerankPolls } from './utils/hrRecommendSessionTaskRunner'
 import {
   registerSmartApplyReviewDialog,
   resumeSmartApplyPolling,
@@ -44,6 +49,7 @@ watch(() => route.path, (newPath) => {
       localStorage.removeItem(RESUME_PARSE_STORAGE_KEY)
       localStorage.removeItem(RESUME_PARSE_RESULT_KEY)
       localStorage.removeItem(SMART_APPLY_TASKS_KEY)
+      clearHrRecommendTasks()
     } catch (e) {}
   }
 })
@@ -68,9 +74,17 @@ const parseProgress = {
 
 provide('parseProgress', parseProgress)
 
+function handleProgressGoToTask(payload) {
+  const id = payload?.jobId
+  if (id) {
+    router.push(`/hr/jobs/${id}/recommend`)
+  }
+}
+
 function handleProgressClickToFill(payload) {
   const data = payload?.data ?? payload
   const taskType = payload?.taskType ?? progressBarRef.value?.taskType ?? 'parse'
+  const jobId = payload?.jobId ?? data?.job_id
 
   if (taskType === 'smart_apply') {
     router.push('/dashboard/applications')
@@ -81,6 +95,17 @@ function handleProgressClickToFill(payload) {
     window.dispatchEvent(new CustomEvent('globalRecommendComplete', { detail: data }))
     if (!router.currentRoute.value.path.includes('/dashboard')) {
       router.push('/dashboard')
+    }
+    return
+  }
+
+  if (taskType === 'resume_recommend') {
+    const resultData = data?.result ?? data
+    window.dispatchEvent(new CustomEvent('globalResumeRecommendComplete', { detail: { jobId, data: resultData } }))
+    if (jobId) {
+      router.push(`/hr/jobs/${jobId}/recommend`)
+    } else if (!router.currentRoute.value.path.includes('/hr/jobs')) {
+      router.push('/hr/jobs')
     }
     return
   }
@@ -149,6 +174,9 @@ onMounted(() => {
   registerSmartApplyReviewDialog(smartApplyReviewRef)
   startGlobalParsePollingIfNeeded()
   startGlobalResumeParsePollingIfNeeded()
+  resumeAllHrResumeRecommendPolls()
+  normalizeRecommendTaskQueue()
+  resumeAllSessionRerankPolls()
   resumeSmartApplyPolling(parseProgress)
 
   window.addEventListener('storage', (e) => {

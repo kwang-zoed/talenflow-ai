@@ -23,6 +23,10 @@
           <el-icon><TrendCharts /></el-icon>
           求职驾驶舱
         </el-menu-item>
+        <el-menu-item index="/dashboard/profile">
+          <el-icon><Location /></el-icon>
+          我的所在地
+        </el-menu-item>
       </el-menu>
     </div>
 
@@ -34,7 +38,7 @@
 </template>
 
 <script setup>
-import { Briefcase, TrendCharts } from '@element-plus/icons-vue'
+import { Briefcase, TrendCharts, Location } from '@element-plus/icons-vue'
 </script>
 
 <style scoped>

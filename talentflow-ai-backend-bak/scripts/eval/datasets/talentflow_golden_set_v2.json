@@ -1,0 +1,111 @@
+{
+  "name": "talentflow_golden_set_v2",
+  "description": "TalentFlow RAG 评测黄金数据集 v2。\n\nCHANGELOG:\n- 2026-06-08: 自 v1 复审全部 13 条标注；BadCase 分析无 recall@5 失败项\n- 补充 source=synthetic 元数据；keywords 与 cli.py smoke --pipeline rag 二次校对\n- 预留 trace 追加通道（cli.py trace --upload）\n\n职位 ID 范围：9001-9013（eval 种子）",
+  "examples": [
+    {
+      "inputs": { "query": "深圳 Python 后端开发 3年经验", "top_k": 5 },
+      "outputs": {
+        "expected_job_ids": [9001, 9006],
+        "keywords": ["Python", "后端", "深圳"],
+        "source": "synthetic"
+      }
+    },
+    {
+      "inputs": { "query": "应届生 Java 开发 杭州", "top_k": 5 },
+      "outputs": {
+        "expected_job_ids": [9005],
+        "keywords": ["Java", "应届生", "杭州"],
+        "source": "synthetic"
+      }
+    },
+    {
+      "inputs": { "query": "远程 Go 后端开发", "top_k": 5 },
+      "outputs": {
+        "expected_job_ids": [9013, 9009],
+        "keywords": ["Go", "远程", "后端"],
+        "source": "synthetic"
+      }
+    },
+    {
+      "inputs": { "query": "上海 资深 Java 架构师", "top_k": 5 },
+      "outputs": {
+        "expected_job_ids": [9011],
+        "keywords": ["Java", "架构师", "上海"],
+        "source": "synthetic"
+      }
+    },
+    {
+      "inputs": { "query": "全栈 Python Vue 远程工作", "top_k": 5 },
+      "outputs": {
+        "expected_job_ids": [9007],
+        "keywords": ["Python", "Vue", "全栈", "远程"],
+        "source": "synthetic"
+      }
+    },
+    {
+      "inputs": { "query": "北京 Go 微服务开发", "top_k": 5 },
+      "outputs": {
+        "expected_job_ids": [9003, 9012],
+        "keywords": ["Go", "微服务", "北京"],
+        "source": "synthetic",
+        "annotation_note": "9013 为远程 Go，不作为北京现场岗期望"
+      }
+    },
+    {
+      "inputs": { "query": "深圳 前端 React 开发", "top_k": 5 },
+      "outputs": {
+        "expected_job_ids": [9008],
+        "keywords": ["React", "前端", "深圳"],
+        "source": "synthetic"
+      }
+    },
+    {
+      "inputs": { "query": "上海 Python 数据分析", "top_k": 5 },
+      "outputs": {
+        "expected_job_ids": [9004],
+        "keywords": ["Python", "数据分析", "上海"],
+        "source": "synthetic"
+      }
+    },
+    {
+      "inputs": { "query": "深圳 Java 后端 Spring Boot", "top_k": 5 },
+      "outputs": {
+        "expected_job_ids": [9002],
+        "keywords": ["Java", "后端", "深圳", "Spring Boot"],
+        "source": "synthetic"
+      }
+    },
+    {
+      "inputs": { "query": "东莞 Python Flask 开发", "top_k": 5 },
+      "outputs": {
+        "expected_job_ids": [9010],
+        "keywords": ["Python", "Flask", "东莞"],
+        "source": "synthetic"
+      }
+    },
+    {
+      "inputs": { "query": "远程 DevOps Kubernetes", "top_k": 5 },
+      "outputs": {
+        "expected_job_ids": [9009],
+        "keywords": ["DevOps", "Kubernetes", "远程"],
+        "source": "synthetic"
+      }
+    },
+    {
+      "inputs": { "query": "深圳 资深 Python 架构师", "top_k": 5 },
+      "outputs": {
+        "expected_job_ids": [9006],
+        "keywords": ["Python", "架构师", "深圳"],
+        "source": "synthetic"
+      }
+    },
+    {
+      "inputs": { "query": "北京 区块链 Go 开发", "top_k": 5 },
+      "outputs": {
+        "expected_job_ids": [9012],
+        "keywords": ["Go", "区块链", "北京"],
+        "source": "synthetic"
+      }
+    }
+  ]
+}

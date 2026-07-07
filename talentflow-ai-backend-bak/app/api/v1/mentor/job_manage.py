@@ -12,6 +12,7 @@ from app.rag.vector_store import add_job_to_vectorstore, remove_job_from_vectors
 from app.schemas.job_schema import JobParseResponse, BatchJobParseResponse
 from app.utils.celery_task_status import build_celery_task_status
 from app.utils.data_cleaner import clean_skills_data
+from app.services.location_service import apply_geocode_to_job
 
 
 router = APIRouter()
@@ -27,6 +28,9 @@ def job_to_dict(job: JobPosition) -> dict:
         "description": job.description,
         "job_id": job.job_id,
         "location": job.location,
+        "work_address": job.work_address,
+        "latitude": job.latitude,
+        "longitude": job.longitude,
         "experience_requirement": job.experience_requirement,
         "education_requirement": job.education_requirement,
         "mentor_id": job.mentor_id,
@@ -56,6 +60,7 @@ def create_job(
         description: str = Form(''),
         job_id: Optional[str] = Form(None),
         location: Optional[str] = Form(None),
+        work_address: Optional[str] = Form(None),
         experience_requirement: Optional[str] = Form(None),
         education_requirement: Optional[str] = Form(None),
         file: Optional[UploadFile] = File(None),
@@ -76,6 +81,7 @@ def create_job(
         "description": description,
         "job_id": job_id,
         "location": location,
+        "work_address": work_address,
         "experience_requirement": experience_requirement,
         "education_requirement": education_requirement,
         "required_skills": skills,
@@ -83,6 +89,10 @@ def create_job(
     }
 
     db_job = crud.create_job(db, job_data=job_data)
+    apply_geocode_to_job(db_job)
+    db.add(db_job)
+    db.commit()
+    db.refresh(db_job)
     
     add_job_to_vectorstore(db_job)
     
@@ -99,6 +109,7 @@ def update_job(
         description: Optional[str] = Form(None),
         job_id_field: Optional[str] = Form(None, alias="job_id"),
         location: Optional[str] = Form(None),
+        work_address: Optional[str] = Form(None),
         experience_requirement: Optional[str] = Form(None),
         education_requirement: Optional[str] = Form(None),
         file: Optional[UploadFile] = File(None),
@@ -122,6 +133,8 @@ def update_job(
         job_data["job_id"] = job_id_field
     if location is not None:
         job_data["location"] = location
+    if work_address is not None:
+        job_data["work_address"] = work_address
     if experience_requirement is not None:
         job_data["experience_requirement"] = experience_requirement
     if education_requirement is not None:
@@ -134,6 +147,11 @@ def update_job(
             pass
 
     db_job = crud.update_job(db, job_id, job_data)
+    if db_job:
+        apply_geocode_to_job(db_job)
+        db.add(db_job)
+        db.commit()
+        db.refresh(db_job)
     return job_to_dict(db_job)
 
 

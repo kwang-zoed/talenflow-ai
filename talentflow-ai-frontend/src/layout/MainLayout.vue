@@ -99,10 +99,7 @@ const handleLogout = async () => {
       cancelButtonText: '取消',
       type: 'warning'
     })
-    // 清除 LocalStorage
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    // 清除 Pinia 中的状态
+    // 清除登录状态（含双令牌）
     userStore.logout()
     // 跳转到登录页
     await router.push('/login')

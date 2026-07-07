@@ -1,21 +1,19 @@
 # 智能投递序列图
 
 > 预览：安装 **Markdown Preview Mermaid Support**，打开本文件 `Ctrl+Shift+V`；或复制 `mermaid` 到 [Mermaid Live Editor](https://mermaid.live)。  
-> 配套活动流程图：[smart-apply-flow.md](./smart-apply-flow.md)
+> 配套：[smart-apply-flow.md](./smart-apply-flow.md) · [smart-apply-state.md](./smart-apply-state.md)
 
 ---
 
 ## 30 秒读懂
 
-一次智能投递在时间上分为 **3 段**（LangSmith 里常显示为 2～3 个 Turn）：
+一次智能投递分 **3 个 Turn**，共用 `thread_id`。竖线 **激活条** 用 `activate` / `deactivate` 标注；后端 ID 为 `SVR`（显示名 FastAPI）。
 
-| 段 | 执行进程 | 触发方式 | 跑到哪一步 |
-|----|----------|----------|------------|
-| **Turn 1** | Celery Worker | `POST /smart-apply/submit` | 取简历 → AI 优化 → **暂停等确认简历** |
-| **Turn 2** | FastAPI | `POST /thread/{id}/resume` | 保存简历 → 写求职信 → **暂停等确认求职信** |
-| **Turn 3** | FastAPI | 再次 `POST .../resume` | 写入投递记录 → 完成 |
-
-同一次投递共用 **`thread_id`**（Checkpointer 续跑）；**`task_id`** 主要用于 Turn 1 轮询 Celery 进度。
+| Turn | 进程 | 触发 | status 走向 |
+|------|------|------|-------------|
+| 1 | Celery | `POST .../submit` | `processing` → `interrupted` |
+| 2 | FastAPI | `POST .../resume` | `interrupted` → `processing` → `interrupted` |
+| 3 | FastAPI | 再次 `.../resume` | `processing` → `success` |
 
 ---
 
@@ -26,7 +24,7 @@ sequenceDiagram
     autonumber
     actor U as 求职者
     participant FE as Vue 前端
-    participant API as FastAPI
+    participant SVR as FastAPI
     participant DB as MySQL
     participant RQ as Redis 队列
     participant WK as Celery Worker
@@ -35,65 +33,97 @@ sequenceDiagram
     participant MCP as MCP Server
     participant LLM as DeepSeek
 
-    Note over U,LLM: Turn 1 — 提交与 Celery 执行（astream）
+    Note over U,LLM: Turn 1 — 提交与 Celery 执行
 
     U->>FE: 选择简历+职位，点击智能投递
-    FE->>API: POST /api/v1/user/smart-apply/submit
-    API->>API: build_initial_state 校验简历
-    API->>API: assert_smart_apply_ready
-    API->>DB: create_apply_task(thread_id)
-    API->>RQ: smart_apply_task.delay(payload)
-    API-->>FE: task_id + thread_id
+    FE->>SVR: POST smart-apply/submit
+    activate SVR
+    SVR->>SVR: build_initial_state 校验简历
+    SVR->>SVR: assert_smart_apply_ready
+    SVR->>DB: create_apply_task status running
+    DB-->>SVR: row id
+    SVR->>RQ: smart_apply_task.delay
+    SVR-->>FE: task_id + thread_id
+    deactivate SVR
     FE->>FE: localStorage 保存任务
 
-    loop 轮询进度 pollSmartApplyResult
-        FE->>API: GET /smart-apply/status/{task_id}
-        API->>RQ: AsyncResult 读 Celery 状态
-        API-->>FE: processing / percent / stage
+    loop 轮询直到 interrupted
+        FE->>SVR: GET smart-apply/status/task_id
+        activate SVR
+        SVR->>RQ: AsyncResult 读 Celery
+        RQ-->>SVR: state PROGRESS meta
+        SVR-->>FE: status processing percent stage
+        deactivate SVR
     end
 
     RQ->>WK: 消费 smart_apply_task
-    WK->>LG: graph.astream(initial_state, thread_id)
-    LG->>MCP: get_resume_content(user_id)
+    activate WK
+    WK->>LG: graph.astream initial_state thread_id
+    activate LG
+    LG->>MCP: get_resume_content user_id
     MCP->>DB: 查询默认简历
+    DB-->>MCP: 简历记录
     MCP-->>LG: 简历正文与字段
-    LG->>LLM: optimize_resume_node AI 优化
+    LG->>LLM: optimize_resume_node
     LLM-->>LG: optimized_resume JSON
     LG->>CP: 写入 checkpoint
+    CP-->>LG: ok
     LG->>LG: interrupt 等待审核简历
     WK->>RQ: update_state PROGRESS interrupted
-    FE->>API: GET status
-    API-->>FE: status=interrupted review_type=optimized_resume
+    deactivate LG
+    deactivate WK
+
+    FE->>SVR: GET status
+    activate SVR
+    SVR->>DB: update_apply_task interrupted
+    DB-->>SVR: ok
+    SVR-->>FE: status interrupted review_type optimized_resume
+    deactivate SVR
     FE->>FE: SmartApplyReviewDialog 弹窗
 
-    Note over U,LLM: Turn 2 — 用户确认简历后 FastAPI 续跑（ainvoke）
+    Note over U,LLM: Turn 2 — 确认简历后 FastAPI 续跑
 
     U->>FE: 确认优化简历
-    FE->>API: POST /smart-apply/thread/{thread_id}/resume
-    API->>LG: ainvoke(Command(resume=updates))
+    FE->>SVR: POST thread/thread_id/resume
+    activate SVR
+    SVR->>LG: ainvoke Command resume updates
+    activate LG
     LG->>CP: 读取 checkpoint 断点
+    CP-->>LG: state
     LG->>MCP: save_optimized_resume
     MCP->>DB: INSERT 优化版简历
+    DB-->>MCP: new_resume_id
     MCP-->>LG: new_resume_id
-    LG->>LLM: generate_letter_node 写求职信
+    LG->>LLM: generate_letter_node
     LLM-->>LG: cover_letter
     LG->>CP: 更新 checkpoint
+    CP-->>LG: ok
     LG->>LG: interrupt 等待审核求职信
-    API->>DB: update_apply_task interrupted
-    API-->>FE: status=interrupted review_type=cover_letter
+    deactivate LG
+    SVR->>DB: update_apply_task interrupted
+    DB-->>SVR: ok
+    SVR-->>FE: status interrupted review_type cover_letter
+    deactivate SVR
 
-    Note over U,LLM: Turn 3 — 用户确认求职信后完成投递
+    Note over U,LLM: Turn 3 — 确认求职信后完成投递
 
     U->>FE: 确认求职信
-    FE->>API: POST /thread/{thread_id}/resume
-    API->>LG: ainvoke 续跑
+    FE->>SVR: POST thread/thread_id/resume
+    activate SVR
+    SVR->>LG: ainvoke 续跑
+    activate LG
     LG->>MCP: create_application_record
     MCP->>DB: INSERT applications
+    DB-->>MCP: application_id
     MCP-->>LG: application_id
-    LG->>CP: 最终状态 done
-    API->>DB: update_apply_task success
-    API->>DB: update UserResumeCache 可选
-    API-->>FE: status=success application_id
+    LG->>CP: 最终 checkpoint done
+    CP-->>LG: ok
+    deactivate LG
+    SVR->>DB: update_apply_task success stage done
+    DB-->>SVR: ok
+    SVR->>DB: update UserResumeCache 可选
+    SVR-->>FE: status success application_id
+    deactivate SVR
     FE->>FE: 移除 localStorage 任务，提示成功
 ```
 
@@ -105,7 +135,7 @@ sequenceDiagram
 |------|------|------|
 | 提交 | `POST /api/v1/user/smart-apply/submit` | 返回 `task_id`、`thread_id` |
 | 轮询 | `GET /api/v1/user/smart-apply/status/{task_id}` | `processing` / `interrupted` / `success` / `error` |
-| 续跑 | `POST /api/v1/user/smart-apply/thread/{thread_id}/resume` | Body: `{ updates: {...} }`，人工确认后调用 |
+| 续跑 | `POST /api/v1/user/smart-apply/thread/{thread_id}/resume` | Body `{ updates: {...} }` |
 | 就绪检查 | `GET /api/v1/user/smart-apply/readiness` | Redis / Worker / MCP 是否可用 |
 
 ---
@@ -124,9 +154,9 @@ sequenceDiagram
 
 | 文档 | 区别 |
 |------|------|
-| [smart-apply-flow.md](./smart-apply-flow.md) | **活动图**：分支、状态、失败场景 |
-| [smart-apply-state.md](./smart-apply-state.md) | **状态图**：API / DB / LangGraph 状态转换 |
-| **本文件** | **序列图**：参与者之间按时间的调用顺序 |
+| [smart-apply-flow.md](./smart-apply-flow.md) | 活动图：分支与失败场景 |
+| [smart-apply-state.md](./smart-apply-state.md) | 状态图：status / stage 字段对照 |
+| **本文件** | 序列图：时序 + 激活条生命周期 |
 
 ---
 

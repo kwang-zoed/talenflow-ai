@@ -79,6 +79,7 @@ services:
       CHECKPOINTER_BACKEND: sqlite
       SQLITE_CHECKPOINT_PATH: /app/data/langgraph_checkpoints.sqlite
       PRELOAD_MODELS_ON_STARTUP: ${PRELOAD_MODELS_ON_STARTUP:-false}
+      APP_PROCESS_ROLE: api
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
     depends_on:
       mysql:
@@ -112,6 +113,7 @@ services:
       MCP_SERVER_URL: http://mcp-server:8002/mcp
       CHECKPOINTER_BACKEND: sqlite
       SQLITE_CHECKPOINT_PATH: /app/data/langgraph_checkpoints.sqlite
+      APP_PROCESS_ROLE: worker
     command:
       [
         "celery",

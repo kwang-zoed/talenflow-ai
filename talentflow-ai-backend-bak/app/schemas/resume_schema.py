@@ -16,6 +16,9 @@ class ResumeBase(BaseModel):
     project_experience: Optional[str] = Field(None, description="项目经验")
     skills: Optional[Union[str, List[str]]] = Field(None, description="技能标签列表")
     status: str = Field("Pending", max_length=20, description="状态: Pending/Active/Archived")
+    residence_city: Optional[str] = Field(None, max_length=100, description="常住省市区")
+    residence_address: Optional[str] = Field(None, max_length=255, description="详细住址")
+    use_profile_location: Optional[int] = Field(1, description="1=继承用户默认所在地")
 
 
 # ==================== Request 请求模型 ====================
@@ -42,6 +45,9 @@ class ResumeUpdate(BaseModel):
     skills: Optional[Union[str, List[str]]] = Field(None)
     status: Optional[str] = Field(None, max_length=20)
     is_default: Optional[int] = Field(None)
+    residence_city: Optional[str] = Field(None, max_length=100)
+    residence_address: Optional[str] = Field(None, max_length=255)
+    use_profile_location: Optional[int] = Field(None)
 
 
 # ==================== Response 响应模型 ====================
@@ -51,6 +57,11 @@ class ResumeRead(ResumeBase):
     id: int
     user_id: int
     is_default: int
+    residence_city: Optional[str] = None
+    residence_address: Optional[str] = None
+    use_profile_location: Optional[int] = 1
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     

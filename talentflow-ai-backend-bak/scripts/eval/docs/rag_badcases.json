@@ -1,0 +1,15 @@
+{
+  "experiment": "talentflow-rag-v1-full-48152225",
+  "total_runs": 13,
+  "badcase_count": 0,
+  "averages": {
+    "relevance_pass": 1.0,
+    "valid_format": 1.0,
+    "recall_at_k": 1.0,
+    "precision_at_k": 0.2461538461538462,
+    "semantic_similarity_avg": 0.6469692307692306,
+    "semantic_match_rate": 0.476923076923077,
+    "relevance_score": 1.0
+  },
+  "badcases": []
+}

@@ -25,6 +25,7 @@ _result_expires = int(os.getenv("CELERY_RESULT_EXPIRES", str(60 * 60 * 24)))
 
 celery_app.conf.update(
     include=[
+        "app.services.recommend_session_tasks",
         "app.services.recommendation_service",
         "app.services.smart_apply_service",
     ],
@@ -32,6 +33,7 @@ celery_app.conf.update(
 )
 
 # Worker 启动时必须 import 任务模块，否则 delay() 后状态轮询会报 NotRegistered
+import app.services.recommend_session_tasks  # noqa: F401, E402
 import app.services.recommendation_service  # noqa: F401, E402
 import app.services.smart_apply_service  # noqa: F401, E402
 

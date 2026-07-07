@@ -9,6 +9,7 @@ class JobBase(SQLModel):
     company: str = Field(..., description="公司名称")
     salary: Optional[str] = Field(None, description="薪资范围")
     location: Optional[str] = Field(None, description="工作地点，例如：东莞")
+    work_address: Optional[str] = Field(None, description="详细工作地址")
     experience_requirement: Optional[str] = Field(None, description="经验要求，例如：3-5年")
     education_requirement: Optional[str] = Field(None, description="学历要求，例如：本科")
     required_skills: Optional[List[str]] = Field(default_factory=list, description="技能标签")
@@ -35,6 +36,7 @@ class JobUpdate(SQLModel):
     company: Optional[str] = None
     salary: Optional[str] = None
     location: Optional[str] = None
+    work_address: Optional[str] = None
     experience_requirement: Optional[str] = None
     education_requirement: Optional[str] = None
     required_skills: Optional[List[str]] = None
@@ -48,6 +50,7 @@ class JobParseResponse(SQLModel):
     company: str = Field(..., description="公司名称")
     salary: Optional[str] = Field(None, description="薪资范围")
     location: Optional[str] = Field(None, description="工作地点，例如：东莞")
+    work_address: Optional[str] = Field(None, description="详细工作地址")
     experience_requirement: Optional[str] = Field(None, description="经验要求，例如：3-5年")
     education_requirement: Optional[str] = Field(None, description="学历要求，例如：本科")
     required_skills: Optional[List[str]] = Field(default_factory=list, description="技能标签")

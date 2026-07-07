@@ -1,6 +1,14 @@
 import request from '../utils/request'
 import { pollTaskResult, normalizeTaskStatus, createProcessingStatusHandler } from '../utils/taskPoller'
 
+export function getUserProfile() {
+  return request({ url: '/user/profile', method: 'get' })
+}
+
+export function updateUserProfile(data) {
+  return request({ url: '/user/profile', method: 'put', data })
+}
+
 export function getTaskList(params) {
   return request({
     url: '/user/tasks/',
@@ -92,6 +100,47 @@ export const pollSmartApplyResult = (taskId, maxTime = 300000) => {
       return { reject: new Error(data.message || '智能投递失败') }
     },
   })
+}
+
+const unwrap = (res) => {
+  if (!res || typeof res !== 'object') return res
+  if (res.session_id != null || res.task_id != null) return res
+  if (res.data?.session_id != null || res.data?.task_id != null) return res.data
+  return res
+}
+
+export const createJobRecommendSession = (pageSize = 10) => {
+  return request({
+    url: '/user/recommend/session',
+    method: 'post',
+    data: { page_size: pageSize },
+  }).then(unwrap)
+}
+
+export const getJobRecommendSessionMore = (sessionId, excludeIds = [], limit = 10) => {
+  const exclude_ids = excludeIds.filter(Boolean).join(',')
+  return request({
+    url: `/user/recommend/session/${sessionId}/more`,
+    method: 'get',
+    params: { exclude_ids, limit },
+  }).then(unwrap)
+}
+
+export const getJobRecommendSessionStatus = (sessionId) => {
+  return request({
+    url: `/user/recommend/session/${sessionId}/status`,
+    method: 'get',
+    skipGlobalError: true,
+  }).then(unwrap)
+}
+
+export const applyJobRecommendSessionRerank = (sessionId, limit = 10) => {
+  return request({
+    url: `/user/recommend/session/${sessionId}/apply-rerank`,
+    method: 'post',
+    params: { limit },
+    skipGlobalError: true,
+  }).then(unwrap)
 }
 
 export const submitRecommendTask = (userId) => {

@@ -112,14 +112,11 @@ const onSubmit = async () => {
         role: data.user.role // 确保后端返回了 role
       };
 
-      // 保存 Token 和用户信息
-      localStorage.setItem('token', data.access_token);
-      localStorage.setItem('user', JSON.stringify(user));
-
-      const userStore = useUserStore(); // 1. 获取 Store 实例
-
-      userStore.setToken(data.access_token); 
+      // 保存双令牌与用户信息
+      const userStore = useUserStore();
+      userStore.setTokens(data.access_token, data.refresh_token);
       userStore.setUserInfo(data.user);
+      localStorage.setItem('user', JSON.stringify(user));
 
       ElMessage.success('登录成功！');
 

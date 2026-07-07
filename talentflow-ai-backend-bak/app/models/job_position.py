@@ -24,6 +24,10 @@ class JobPosition(SQLModel, table=True):
         default=None,
         description="工作地点, 例如: 东莞"
     )
+    work_address: Optional[str] = Field(default=None, max_length=255, description="详细工作地址")
+    latitude: Optional[float] = Field(default=None, description="纬度")
+    longitude: Optional[float] = Field(default=None, description="经度")
+    geocoded_at: Optional[datetime] = Field(default=None)
     
     experience_requirement: Optional[str] = Field(
         default=None,

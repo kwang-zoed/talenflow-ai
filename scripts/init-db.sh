@@ -1,38 +1,22 @@
 #!/usr/bin/env bash
-# 导入空库 schema 并 seed 管理员/HR（首次部署）
-# 用法：./scripts/init-db.sh [schema.sql路径]
+# 【手动】强制重置库：导入 schema + seed（会覆盖/追加 SQL 中的 DDL，慎用）
+# 日常 CI/CD 部署请用 deploy-server.sh（不会重复 init）
+# 用法：./scripts/init-db.sh [schema.sql]
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR"
 
-SCHEMA_FILE="${1:-dandelion_tribe_schema.sql}"
+SCHEMA_FILE="${1:-scripts/schema/dandelion_tribe_schema.sql}"
+[[ -f "$SCHEMA_FILE" ]] || SCHEMA_FILE="${1:-dandelion_tribe_schema.sql}"
 
-if [[ ! -f .env ]]; then
-  echo "[init-db] 缺少 .env"
-  exit 1
-fi
-
-# shellcheck disable=SC1091
-set -a
-source .env
-set +a
-
-MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:?请在 .env 设置 MYSQL_ROOT_PASSWORD}"
-MYSQL_DATABASE="${MYSQL_DATABASE:-dandelion_tribe}"
-
+echo "[init-db] 手动初始化（非 CI/CD 常规流程）"
 if [[ -f "$SCHEMA_FILE" ]]; then
+  source "$ROOT_DIR/scripts/lib/load-env.sh"
+  load_dotenv .env
   echo "[init-db] 导入 $SCHEMA_FILE ..."
-  docker exec -i talentflow-mysql mysql -uroot -p"${MYSQL_ROOT_PASSWORD}" "${MYSQL_DATABASE}" < "$SCHEMA_FILE"
-else
-  echo "[init-db] 未找到 $SCHEMA_FILE，跳过 schema 导入"
+  docker exec -i talentflow-mysql mysql -uroot -p"${MYSQL_ROOT_PASSWORD}" "${MYSQL_DATABASE:-dandelion_tribe}" < "$SCHEMA_FILE"
 fi
 
-if docker exec talentflow-api test -f /app/scripts/seed_demo_users.py 2>/dev/null; then
-  docker exec talentflow-api python scripts/seed_demo_users.py
-else
-  echo "[init-db] 请先拷贝 seed 脚本或更新 backend 镜像"
-  exit 1
-fi
-
+bash "$ROOT_DIR/scripts/bootstrap-db.sh"
 echo "[init-db] 完成"

@@ -25,6 +25,7 @@
             <p><i class="el-icon-user"></i> {{ resume.name || '未填写姓名' }}</p>
             <p><i class="el-icon-phone"></i> {{ resume.phone || '未填写电话' }}</p>
             <p><i class="el-icon-date"></i> 更新: {{ formatDate(resume.updated_at) }}</p>
+            <p v-if="resume.residence_city || resume.use_profile_location"><i class="el-icon-location"></i> {{ resume.use_profile_location ? '默认所在地' : resume.residence_city }}</p>
           </div>
 
           <div class="card-footer">
@@ -112,6 +113,20 @@
           </el-col>
         </el-row>
 
+        <el-divider content-position="left">所在地</el-divider>
+        <el-form-item label="使用账户默认所在地">
+          <el-switch v-model="useProfileLocation" :active-value="1" :inactive-value="0" />
+        </el-form-item>
+        <template v-if="!useProfileLocation">
+          <el-form-item label="常住城市">
+            <LocationPicker v-model:city="form.residence_city" v-model:address="form.residence_address" />
+          </el-form-item>
+        </template>
+        <p v-else class="location-hint">
+          将使用「我的所在地」中的默认城市。
+          <router-link to="/dashboard/profile">去设置</router-link>
+        </p>
+
         <el-divider content-position="left">职业经历</el-divider>
         
         <el-form-item label="工作经验">
@@ -166,7 +181,7 @@ import {
   deleteResumeAPI,
   parseResumeFileAPI // 假设您有一个解析文件的接口
 } from '../../../api/resume'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import LocationPicker from '@/components/LocationPicker.vue'
 
 // --- Store & State ---
 const resumeStore = useResumeStore()
@@ -192,9 +207,16 @@ const defaultForm = {
   project_experience: '',
   skills: '',
   summary: '',
-  is_default: 0
+  is_default: 0,
+  residence_city: '',
+  residence_address: '',
+  use_profile_location: 1,
 }
 const form = ref({ ...defaultForm })
+const useProfileLocation = computed({
+  get: () => form.value.use_profile_location ?? 1,
+  set: (v) => { form.value.use_profile_location = v },
+})
 
 // --- 方法 ---
 const handleFileUpload = async (file) => {
@@ -259,7 +281,11 @@ const handleCreate = () => {
 
 const handleEdit = (resume) => {
   isEdit.value = true
-  form.value = JSON.parse(JSON.stringify(resume))
+  form.value = {
+    ...defaultForm,
+    ...JSON.parse(JSON.stringify(resume)),
+    use_profile_location: resume.use_profile_location ?? 1,
+  }
   dialogVisible.value = true
 }
 

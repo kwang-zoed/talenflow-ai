@@ -11,8 +11,11 @@ from app.rag.embeddings import embed_documents, get_vector_dimension
 VECTOR_STORE_DIR = os.path.join(os.path.dirname(__file__), '..', '..', 'vector_store')
 INDEX_FILE = os.path.join(VECTOR_STORE_DIR, 'index.faiss')
 METADATA_FILE = os.path.join(VECTOR_STORE_DIR, 'metadata.pkl')
+RESUME_INDEX_FILE = os.path.join(VECTOR_STORE_DIR, 'resume_index.faiss')
+RESUME_METADATA_FILE = os.path.join(VECTOR_STORE_DIR, 'resume_metadata.pkl')
 
 _vectorstore = None
+_resume_vectorstore = None
 
 
 def add_job_to_vectorstore(db_job: JobPosition):
@@ -201,3 +204,106 @@ def remove_job_from_vectorstore(job_id: int) -> bool:
         traceback.print_exc()
         print(f"{'='*60}")
         return False
+
+
+def get_resume_vectorstore() -> Dict:
+    global _resume_vectorstore
+    if _resume_vectorstore is None:
+        ensure_dir()
+        dimension = get_vector_dimension()
+        if os.path.exists(RESUME_INDEX_FILE) and os.path.exists(RESUME_METADATA_FILE):
+            try:
+                index = faiss.read_index(RESUME_INDEX_FILE)
+                with open(RESUME_METADATA_FILE, 'rb') as f:
+                    metadatas = pickle.load(f)
+            except Exception:
+                base_index = faiss.IndexFlatIP(dimension)
+                index = faiss.IndexIDMap2(base_index)
+                metadatas = []
+        else:
+            base_index = faiss.IndexFlatIP(dimension)
+            index = faiss.IndexIDMap2(base_index)
+            metadatas = []
+        _resume_vectorstore = {
+            "index": index,
+            "embedding_function": embed_documents,
+            "metadatas": metadatas,
+        }
+    return _resume_vectorstore
+
+
+def _add_texts_to_resume_vectorstore(texts: List[str], metadatas: List[Dict]):
+    if not texts:
+        return
+    vectorstore = get_resume_vectorstore()
+    index = vectorstore["index"]
+    embedding_func = vectorstore["embedding_function"]
+    numpy_embeddings = np.array(embedding_func(texts)).astype('float32')
+    ids = np.array([m.get('id') for m in metadatas]).astype('int64')
+    if hasattr(index, 'remove_ids'):
+        index.remove_ids(ids)
+    index.add_with_ids(numpy_embeddings, ids)
+    id_set = set(int(i) for i in ids.tolist())
+    vectorstore["metadatas"] = [m for m in vectorstore["metadatas"] if m.get('id') not in id_set]
+    vectorstore["metadatas"].extend(metadatas)
+    faiss.write_index(index, RESUME_INDEX_FILE)
+    with open(RESUME_METADATA_FILE, 'wb') as f:
+        pickle.dump(vectorstore["metadatas"], f)
+
+
+def add_resume_to_vectorstore(db_resume):
+    from app.models.resume import Resume
+    if not isinstance(db_resume, Resume):
+        return
+    if db_resume.status == "Archived":
+        remove_resume_from_vectorstore(db_resume.id)
+        return
+    try:
+        from app.rag.resume_retriever import resume_to_text
+        full_text = resume_to_text(db_resume)
+        metadatas = [{
+            "id": db_resume.id,
+            "name": db_resume.name,
+            "title": db_resume.title,
+            "type": "resume",
+        }]
+        _add_texts_to_resume_vectorstore([full_text], metadatas)
+    except Exception as e:
+        print(f"[VECTOR STORE WARNING] 简历向量写入失败: {e}")
+
+
+def remove_resume_from_vectorstore(resume_id: int) -> bool:
+    try:
+        vectorstore = get_resume_vectorstore()
+        index = vectorstore["index"]
+        if hasattr(index, 'remove_ids'):
+            faiss_id = np.array([resume_id]).astype('int64')
+            index.remove_ids(faiss_id)
+        vectorstore["metadatas"] = [m for m in vectorstore["metadatas"] if m.get('id') != resume_id]
+        faiss.write_index(index, RESUME_INDEX_FILE)
+        with open(RESUME_METADATA_FILE, 'wb') as f:
+            pickle.dump(vectorstore["metadatas"], f)
+        return True
+    except Exception as e:
+        print(f"[VECTOR STORE ERROR] 删除简历向量失败: {e}")
+        return False
+
+
+def get_resume_index_count() -> int:
+    if not os.path.exists(RESUME_INDEX_FILE):
+        return 0
+    try:
+        index = faiss.read_index(RESUME_INDEX_FILE)
+        return index.ntotal
+    except Exception:
+        return 0
+
+
+def get_job_index_count() -> int:
+    if not os.path.exists(INDEX_FILE):
+        return 0
+    try:
+        index = faiss.read_index(INDEX_FILE)
+        return index.ntotal
+    except Exception:
+        return 0

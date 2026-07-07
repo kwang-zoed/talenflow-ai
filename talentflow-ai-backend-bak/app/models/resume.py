@@ -25,3 +25,8 @@ class Resume(SQLModel, table=True):
     work_experience: Optional[str] = Field(sa_type=Text, description="工作经验详情")
     source: str = Field(max_length=50, default="user_upload", description="来源")
     target_job_id: Optional[str] = Field(max_length=100, description="目标职位ID")
+    residence_city: Optional[str] = Field(default=None, max_length=100, description="常住省市区")
+    residence_address: Optional[str] = Field(default=None, max_length=255, description="详细住址")
+    latitude: Optional[float] = Field(default=None, description="纬度")
+    longitude: Optional[float] = Field(default=None, description="经度")
+    use_profile_location: int = Field(default=1, description="1=继承用户默认所在地")

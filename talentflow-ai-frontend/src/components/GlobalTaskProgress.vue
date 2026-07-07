@@ -14,7 +14,7 @@
           <div class="progress-text">
             <div class="progress-message">{{ message }}</div>
             <div class="progress-hint">
-              {{ percent < 100 ? `进度: ${percent}%` : completeHint }}
+              {{ progressHintText }}
             </div>
           </div>
         </div>
@@ -39,6 +39,16 @@
             审核待办 ({{ pendingReviewCount }})
           </el-button>
 
+          <el-button
+            v-if="percent < 100 && taskType === 'resume_recommend' && jobId"
+            type="primary"
+            size="small"
+            class="btn-fill"
+            @click="handleGoToTask"
+          >
+            查看任务
+          </el-button>
+
           <el-button 
             v-if="percent === 100 && completeButtonText" 
             type="primary" 
@@ -50,12 +60,21 @@
           </el-button>
           
           <el-button 
-            v-if="percent < 100 && pendingReviewCount === 0" 
+            v-if="percent < 100 && pendingReviewCount === 0 && taskType !== 'resume_recommend'" 
             size="small" 
             class="btn-minimal"
             @click="visible = false"
           >
             后台继续
+          </el-button>
+
+          <el-button
+            v-if="percent < 100 && pendingReviewCount === 0 && taskType === 'resume_recommend'"
+            size="small"
+            class="btn-minimal"
+            @click="visible = false"
+          >
+            收起
           </el-button>
         </div>
       </div>
@@ -64,7 +83,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { Promotion, CircleCheck } from '@element-plus/icons-vue'
 
 const visible = ref(false)
@@ -75,12 +94,27 @@ const completeHint = ref('点击跳转解析弹窗')
 const completeButtonText = ref('前往填充表单')
 const pendingReviewCount = ref(0)
 const taskType = ref('parse')
-const emit = defineEmits(['clickToFill', 'openReview'])
+const jobId = ref(null)
+const indeterminate = ref(false)
+const emit = defineEmits(['clickToFill', 'openReview', 'goToTask'])
+
+const progressHintText = computed(() => {
+  if (percent.value >= 100) return completeHint.value
+  if (indeterminate.value && percent.value === 0) {
+    return '后台处理中，可切换页面；完成后点击「查看推荐结果」'
+  }
+  if (indeterminate.value) {
+    return `处理中 ${percent.value}%，可切换页面`
+  }
+  return `进度: ${percent.value}%`
+})
 
 function showProgress(msg = '正在后台执行...', options = {}) {
   visible.value = true
   message.value = msg
   taskType.value = options.taskType ?? 'parse'
+  indeterminate.value = options.indeterminate ?? false
+  if (options.jobId !== undefined) jobId.value = options.jobId
   if (options.reset !== false) {
     percent.value = 0
     taskData.value = null
@@ -98,6 +132,8 @@ function updateProgress(data) {
   if (data.completeHint !== undefined) completeHint.value = data.completeHint
   if (data.completeButtonText !== undefined) completeButtonText.value = data.completeButtonText
   if (data.pendingReviewCount !== undefined) pendingReviewCount.value = data.pendingReviewCount
+  if (data.jobId !== undefined) jobId.value = data.jobId
+  if (data.indeterminate !== undefined) indeterminate.value = data.indeterminate
   if (data.status === 'success' && data.data) {
     taskData.value = data.data
     visible.value = true
@@ -120,6 +156,8 @@ function resetProgress() {
   message.value = '正在解析文档...'
   percent.value = 0
   taskData.value = null
+  jobId.value = null
+  indeterminate.value = false
   pendingReviewCount.value = 0
   completeHint.value = '点击跳转解析弹窗'
   completeButtonText.value = '前往填充表单'
@@ -130,8 +168,12 @@ function handleOpenReview() {
   emit('openReview')
 }
 
+function handleGoToTask() {
+  emit('goToTask', { jobId: jobId.value, taskType: taskType.value })
+}
+
 function handleClickToFill() {
-  emit('clickToFill', { data: taskData.value, taskType: taskType.value })
+  emit('clickToFill', { data: taskData.value, taskType: taskType.value, jobId: jobId.value })
   visible.value = false
 }
 

@@ -1,7 +1,8 @@
 # 职位推荐流程图
 
 > 预览：在 Cursor / VS Code 中安装 **Markdown Preview Mermaid Support**，打开本文件后使用 Markdown 预览（`Ctrl+Shift+V`）。  
-> 也可复制下方 `mermaid` 代码块到 [Mermaid Live Editor](https://mermaid.live) 导出 PNG/SVG。
+> 也可复制下方 `mermaid` 代码块到 [Mermaid Live Editor](https://mermaid.live) 导出 PNG/SVG。  
+> 状态转换见 [recommend-state.md](./recommend-state.md)。
 
 **Mermaid 写法注意：** 节点文字里避免未加引号的 `[` `]`、`/`、`:`、`|×` 等，否则会被当成语法解析。公式细节见下方「评分公式」表，图内用简写标签。
 

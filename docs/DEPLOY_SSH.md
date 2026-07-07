@@ -124,14 +124,14 @@ git pull --ff-only              # 仅更新 compose/脚本，不重置数据库
 
 | 现象 | 处理 |
 |------|------|
-| `Permission denied (publickey)` | 检查 `SSH_PRIVATE_KEY` 是否与服务器 `authorized_keys` 对应 |
+| 远程步骤立刻 exit 1、几乎无日志 | 展开 **SSH 连通性测试** 与 **远程 pull** 两步日志；常见原因见下 |
+| `Permission denied (publickey)` | `SSH_PRIVATE_KEY` 与服务器 `authorized_keys` 不匹配；**密钥不能带 passphrase** |
+| `./scripts/deploy-server.sh: No such file or directory` | 服务器未 clone 完整仓库；见「服务器一次性准备」 |
 | `缺少 .env` | 在服务器 `/root/workspace` 创建 `.env` |
-| deploy 被跳过（0s，job 灰色） | GitHub 上仍是旧 workflow；**push 最新 master** 后重跑 Publish |
+| deploy 被跳过（0s，job 灰色） | push 最新 **master** 后重跑 Publish |
 | deploy job 跑了但 SSH 步骤跳过 | 未配置 Secret `SSH_PRIVATE_KEY` |
-| `./scripts/deploy-server.sh: No such file or directory` | 服务器 `/root/workspace` 未 clone 完整仓库；见上方「服务器一次性准备」 |
 | 想关闭 SSH 部署 | `ENABLE_SSH_DEPLOY=false`（Secret 或 Variable） |
-| 数据库无数据 | 确认 `scripts/schema/dandelion_tribe_schema.sql` 已提交；或手动 `./scripts/init-db.sh` |
-| 每次部署数据被清空 | 是否误用了 `docker compose down -v` |
+| git clone/fetch 失败 | 仓库为 **Private** 时，服务器需配置 GitHub deploy key 或改为 Public |
 
 ---
 

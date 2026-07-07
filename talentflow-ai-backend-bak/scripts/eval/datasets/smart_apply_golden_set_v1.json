@@ -1,0 +1,92 @@
+{
+  "name": "smart_apply_golden_set_v1",
+  "description": "TalentFlow Smart Apply 评测 v1：求职信生成 + 简历优化。inputs 自包含，不依赖 MCP。",
+  "examples": [
+    {
+      "inputs": {
+        "eval_task": "cover_letter",
+        "applicant_name": "张三",
+        "resume_content": "张三，男，本科，3年Python后端经验。曾在某科技公司负责 Django/FastAPI 接口开发，熟悉 MySQL、Redis。参与过订单系统重构，QPS 提升 30%。",
+        "job_description": "招聘 Python 后端工程师（深圳）。要求：3年以上经验，熟悉 FastAPI/Django，有高并发项目经验，良好的团队协作能力。"
+      },
+      "outputs": {
+        "must_mention_keywords": ["Python", "FastAPI"],
+        "quality_rubric": "求职信需体现 Python 后端与岗位匹配度，无编造经历，语气专业简洁"
+      }
+    },
+    {
+      "inputs": {
+        "eval_task": "cover_letter",
+        "applicant_name": "李梅",
+        "resume_content": "李梅，应届生，浙江大学计算机本科。毕业设计为 Java 电商系统，使用 Spring Boot + MySQL。实习期间参与单元测试与 Bug 修复。",
+        "job_description": "杭州电商公司招聘 Java 应届生开发。要求计算机相关专业，掌握 Java/Spring，有实习或项目经验优先，学习能力强。"
+      },
+      "outputs": {
+        "must_mention_keywords": ["Java", "Spring"],
+        "quality_rubric": "求职信应突出应届生身份与 Java 项目/实习经历，态度诚恳，无夸大"
+      }
+    },
+    {
+      "inputs": {
+        "eval_task": "cover_letter",
+        "applicant_name": "王强",
+        "resume_content": "王强，5年 Go 后端开发。熟悉 gRPC、Kubernetes 微服务部署，有远程协作经验。主导过 API 网关与日志链路改造。",
+        "job_description": "远程招聘 Go 后端工程师。要求 3-5 年 Go 经验，熟悉微服务与 gRPC，能适应远程全职，沟通能力强。"
+      },
+      "outputs": {
+        "must_mention_keywords": ["Go", "远程"],
+        "quality_rubric": "求职信需体现 Go 微服务能力与远程工作适配，无编造项目"
+      }
+    },
+    {
+      "inputs": {
+        "eval_task": "optimize_resume",
+        "applicant_name": "赵敏",
+        "resume_content": "赵敏，2年数据分析经验。会用 Python 做数据清洗和报表，熟悉 SQL 和 Pandas。",
+        "job_description": "上海数联科技招聘 Python 数据分析师。要求 1-3 年经验，精通 Python/Pandas/SQL，有数据可视化经验，本科以上学历。",
+        "original_resume": {
+          "name": "赵敏",
+          "phone": "13800001111",
+          "email": "zhaomin@example.com",
+          "title": "数据分析师",
+          "education": "本科",
+          "experience_years": 2,
+          "skills": ["Python", "Pandas", "SQL"],
+          "summary": "2年数据分析经验，擅长报表与数据清洗。",
+          "work_experience": "2022-至今 某互联网公司 数据分析师，负责业务报表与数据提取。",
+          "project_experience": "用户留存分析项目：使用 Python 清洗数据并输出周报。"
+        }
+      },
+      "outputs": {
+        "must_preserve_name": "赵敏",
+        "must_mention_keywords": ["Python", "Pandas", "数据分析"],
+        "quality_rubric": "优化后简历应植入数据分析岗位关键词，量化成果，姓名不变，无编造经历"
+      }
+    },
+    {
+      "inputs": {
+        "eval_task": "optimize_resume",
+        "applicant_name": "陈浩",
+        "resume_content": "陈浩，Java开发3年，做过 Spring Boot 项目，熟悉 MySQL。",
+        "job_description": "深圳科创软件招聘 Java 后端工程师。要求 3-5 年 Java/Spring Boot 经验，熟悉 MySQL/Redis，有电商或支付经验优先。",
+        "original_resume": {
+          "name": "陈浩",
+          "phone": "13900002222",
+          "email": "chenhao@example.com",
+          "title": "Java开发工程师",
+          "education": "本科",
+          "experience_years": 3,
+          "skills": ["Java", "Spring Boot", "MySQL"],
+          "summary": "3年 Java 后端开发经验。",
+          "work_experience": "2021-至今 某软件公司 Java 开发，参与业务系统 API 开发。",
+          "project_experience": "订单模块：使用 Spring Boot 开发 REST 接口。"
+        }
+      },
+      "outputs": {
+        "must_preserve_name": "陈浩",
+        "must_mention_keywords": ["Java", "Spring Boot"],
+        "quality_rubric": "优化后简历应突出 Java 后端与 Spring Boot，使用 STAR 描述项目，姓名不变"
+      }
+    }
+  ]
+}

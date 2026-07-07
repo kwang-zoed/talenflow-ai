@@ -41,6 +41,13 @@
           <span>结算记录</span>
         </el-menu-item>
       </el-menu>
+
+      <div class="sidebar-footer">
+        <el-button class="logout-btn" text @click="handleLogout">
+          <el-icon><SwitchButton /></el-icon>
+          <span>退出登录</span>
+        </el-button>
+      </div>
     </el-aside>
 
     <el-container>
@@ -71,7 +78,7 @@
 
 <script setup>
 // 引入图标
-import { HomeFilled, Briefcase, Tickets, FolderOpened, Clock, ArrowDown } from '@element-plus/icons-vue'
+import { HomeFilled, Briefcase, Tickets, FolderOpened, Clock, ArrowDown, SwitchButton } from '@element-plus/icons-vue'
 
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../store/user'
@@ -94,12 +101,19 @@ const handleCommand = (command) => {
 }
 
 // 处理退出登录
-const handleLogout = () => {
-  localStorage.removeItem('token')
-  localStorage.removeItem('user')
-  userStore.logout()
-  router.push('/login')
-  ElMessage.success('已安全退出')
+const handleLogout = async () => {
+  try {
+    await ElMessageBox.confirm('确定要退出登录吗？', '退出提示', {
+      confirmButtonText: '退出',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    userStore.logout()
+    router.push('/login')
+    ElMessage.success('已安全退出')
+  } catch {
+    // 用户取消
+  }
 }
 </script>
 
@@ -111,6 +125,30 @@ const handleLogout = () => {
 .sidebar {
   background-color: #2c3e50;
   color: white;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar :deep(.el-menu) {
+  flex: 1;
+  border-right: none;
+}
+
+.sidebar-footer {
+  padding: 12px 16px 16px;
+  border-top: 1px solid #3e5165;
+}
+
+.logout-btn {
+  width: 100%;
+  justify-content: flex-start;
+  color: #bfcbd9;
+  font-size: 14px;
+  gap: 8px;
+}
+
+.logout-btn:hover {
+  color: #f56c6c;
 }
 
 .logo {
@@ -134,6 +172,22 @@ const handleLogout = () => {
 
 .header-right {
   cursor: pointer;
+  z-index: 10;
+  position: relative;
+}
+
+.el-dropdown-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  color: #303133;
+  font-size: 14px;
+}
+
+.el-dropdown-link:hover {
+  background: #f5f7fa;
 }
 
 .main-content {

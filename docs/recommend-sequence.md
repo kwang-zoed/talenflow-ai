@@ -1,7 +1,7 @@
 # 职位推荐序列图
 
 > 预览：安装 **Markdown Preview Mermaid Support**，打开本文件 `Ctrl+Shift+V`；或复制 `mermaid` 到 [Mermaid Live Editor](https://mermaid.live)。  
-> 配套活动流程图：[recommend-flow.md](./recommend-flow.md)
+> 配套活动流程图：[recommend-flow.md](./recommend-flow.md) · 状态图：[recommend-state.md](./recommend-state.md)
 
 ---
 
@@ -18,7 +18,7 @@ sequenceDiagram
     autonumber
     actor U as 求职者
     participant FE as JobCockpit
-    participant API as FastAPI
+    participant SVR as FastAPI
     participant RQ as Redis 队列
     participant RB as Redis Result
     participant WK as Celery Worker
@@ -34,22 +34,27 @@ sequenceDiagram
     alt 10 分钟内有效缓存
         FE->>FE: 直接渲染 recommendedJobs
     else 无缓存或强制刷新
-        FE->>API: POST /api/v1/user/recommend/submit
+        FE->>SVR: POST /api/v1/user/recommend/submit
         Note right of FE: body user_id top_k=5 JWT
-        API->>RQ: generate_recommendation_task.delay
-        API-->>FE: task_id
+        activate SVR
+        SVR->>RQ: generate_recommendation_task.delay
+        SVR-->>FE: task_id
+        deactivate SVR
         FE->>FE: sessionStorage 保存 task_id
 
         loop pollRecommendResult 最长 120s
-            FE->>API: GET /user/recommend/status/{task_id}
-            API->>RB: AsyncResult 读任务状态
+            FE->>SVR: GET /user/recommend/status/task_id
+            activate SVR
+            SVR->>RB: AsyncResult 读任务状态
             alt PENDING 或 PROGRESS
-                API-->>FE: status=processing
+                Note right of FE: status processing
             else SUCCESS
-                API-->>FE: status=success data=职位列表
+                Note right of FE: status success
             else FAILURE
-                API-->>FE: status=error message
+                Note right of FE: status error
             end
+            SVR-->>FE: 返回 status 与 data
+            deactivate SVR
         end
 
         RQ->>WK: 消费推荐任务
@@ -103,7 +108,8 @@ sequenceDiagram
 | 文档 | 区别 |
 |------|------|
 | [recommend-flow.md](./recommend-flow.md) | 活动图：缓存分支、进度条、评分公式 |
-| **本文件** | 序列图：前端 ↔ API ↔ Worker ↔ 检索组件时序 |
+| [recommend-state.md](./recommend-state.md) | 状态图：sessionStorage + API + Celery |
+| **本文件** | 序列图：前端 ↔ SVR ↔ Worker ↔ 检索组件时序 |
 
 ---
 

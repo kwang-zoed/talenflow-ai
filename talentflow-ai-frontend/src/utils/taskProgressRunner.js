@@ -1,6 +1,18 @@
 /**
  * 将 pollTaskResult 与 GlobalTaskProgress（parseProgress）对接
  */
+export { HR_RESUME_RECOMMEND_STORAGE_KEY } from '@/utils/hrResumeRecommendTaskRunner'
+export {
+  startHrResumeRecommendPoll,
+  resumeAllHrResumeRecommendPolls,
+  getHrRecommendPollPromise,
+  getHrRecommendTasks,
+  getHrRecommendTaskByJobId,
+  loadRecommendResultForJob,
+  subscribeHrRecommendQueue,
+  dismissHrRecommendTask,
+  clearHrRecommendTasks,
+} from '@/utils/hrResumeRecommendTaskRunner'
 
 export function wirePollToProgress(pollPromise, progressRef, options = {}) {
   const {
@@ -10,7 +22,12 @@ export function wirePollToProgress(pollPromise, progressRef, options = {}) {
     completeButtonText,
     reset = true,
     pendingReviewCount,
+    estimatedMaxTime,
+    jobId,
+    indeterminate = false,
   } = options
+
+  const pollStart = Date.now()
 
   if (progressRef && showMessage) {
     progressRef.show(showMessage, {
@@ -19,17 +36,31 @@ export function wirePollToProgress(pollPromise, progressRef, options = {}) {
       completeButtonText,
       reset,
       pendingReviewCount,
+      indeterminate,
+      jobId,
     })
   }
 
   pollPromise.onProgress = (statusData) => {
+    let percent = statusData.percent
+    if (percent === undefined && estimatedMaxTime) {
+      percent = Math.min(92, Math.floor(((Date.now() - pollStart) / estimatedMaxTime) * 92))
+    }
     progressRef?.update({
       ...statusData,
+      percent,
+      jobId: statusData.jobId ?? jobId,
       taskType: statusData.taskType ?? taskType,
     })
   }
 
   return pollPromise
+}
+
+/** @deprecated 使用 resumeAllHrResumeRecommendPolls */
+export async function resumeHrResumeRecommendPollIfNeeded(_progressRef) {
+  const { resumeAllHrResumeRecommendPolls } = await import('@/utils/hrResumeRecommendTaskRunner')
+  return resumeAllHrResumeRecommendPolls()
 }
 
 /**

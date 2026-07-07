@@ -4,31 +4,24 @@
  */
 
 const TOKEN_KEY = 'token'
+const REFRESH_TOKEN_KEY = 'refresh_token'
 const USER_KEY = 'user'
 
 export default {
-  /**
-   * 1. 获取 Token
-   * 逻辑：优先从 LocalStorage 获取 -> 如果没有，尝试从 URL 参数中提取并保存
-   */
   getToken() {
-    // A. 尝试从 LocalStorage 获取
     let token = localStorage.getItem(TOKEN_KEY)
 
-    // B. 如果 LocalStorage 没有，检查 URL 参数 (处理首次登录跳转的情况)
     if (!token) {
       const urlParams = new URLSearchParams(window.location.search)
       const urlToken = urlParams.get('token')
 
       if (urlToken) {
-        // 如果 URL 中有 token，存入 LocalStorage 并清理 URL
         localStorage.setItem(TOKEN_KEY, urlToken)
-        
-        // 清理 URL 中的 token 参数，保持地址栏整洁
+
         const newUrl = new URL(window.location)
         newUrl.searchParams.delete('token')
         window.history.replaceState({}, document.title, newUrl)
-        
+
         return urlToken
       }
     }
@@ -36,18 +29,26 @@ export default {
     return token
   },
 
-  /**
-   * 2. 设置 Token
-   */
+  getRefreshToken() {
+    return localStorage.getItem(REFRESH_TOKEN_KEY)
+  },
+
   setToken(token) {
     localStorage.setItem(TOKEN_KEY, token)
   },
 
-  /**
-   * 3. 移除 Token (登出时使用)
-   */
+  setRefreshToken(refreshToken) {
+    localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken)
+  },
+
+  setTokens(accessToken, refreshToken) {
+    if (accessToken) this.setToken(accessToken)
+    if (refreshToken) this.setRefreshToken(refreshToken)
+  },
+
   removeToken() {
     localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(REFRESH_TOKEN_KEY)
   },
 
   /**

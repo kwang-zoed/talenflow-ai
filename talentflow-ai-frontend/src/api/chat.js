@@ -1,62 +1,80 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import { promptRelogin } from '@/utils/unauthorized'
+import {
+  ensureValidAccessToken,
+  getAccessToken,
+  refreshAccessToken,
+  isAuthRefreshRequest,
+} from '@/utils/authToken'
 
-// 1. 创建 axios 实例
 const service = axios.create({
-  baseURL: '/api/v1', // 对应后端的 /api/v1 前缀
-  timeout: 60000, // 流式对话可能较长，设置 60秒超时
+  baseURL: '/api/v1',
+  timeout: 60000,
   headers: {
-    'Content-Type': 'application/json'
-  }
+    'Content-Type': 'application/json',
+  },
 })
 
-// 2. 请求拦截器 (如果有 token 需求)
 service.interceptors.request.use(
-  config => {
-    // 假设你把 token 存在 localStorage 里，key 为 'token'
-    const token = localStorage.getItem('token')
+  async (config) => {
+    if (!isAuthRefreshRequest(config)) {
+      try {
+        await ensureValidAccessToken()
+      } catch (e) {
+        console.warn('[auth] proactive refresh failed', e)
+      }
+    }
+
+    const token = getAccessToken()
     if (token) {
-      config.headers['Authorization'] = 'Bearer ' + token
+      config.headers.Authorization = `Bearer ${token}`
     }
     return config
   },
-  error => {
-    return Promise.reject(error)
-  }
+  (error) => Promise.reject(error)
 )
 
-// 3. 响应拦截器 (处理通用错误)
 service.interceptors.response.use(
-  response => {
-    return response
-  },
-  error => {
+  (response) => response,
+  async (error) => {
+    const { response, config } = error
+
+    if (response?.status === 401 && config && !config._retried && !isAuthRefreshRequest(config)) {
+      config._retried = true
+      try {
+        await refreshAccessToken()
+        config.headers.Authorization = `Bearer ${getAccessToken()}`
+        return service(config)
+      } catch (refreshErr) {
+        promptRelogin()
+        return Promise.reject(refreshErr)
+      }
+    }
+
     console.error('API Error:', error)
-    ElMessage.error(error.response?.data?.message || '网络请求失败')
+    if (response?.status === 401) {
+      promptRelogin()
+    } else {
+      ElMessage.error(response?.data?.message || response?.data?.detail || '网络请求失败')
+    }
     return Promise.reject(error)
   }
 )
 
 /**
  * 流式对话接口
- * @param {Object} data - { message: string, thread_id: string }
- * @param {Function} onMessage - 收到数据块时的回调 (用于实时更新界面)
- * @param {Function} onDone - 结束时的回调 (用于处理完成状态)
  */
 export function chatStream(data, onMessage, onDone) {
   return service({
-    url: '/chat/stream', // 对应后端路由
+    url: '/chat/stream',
     method: 'post',
-    data: data,
-    responseType: 'text', // 关键：必须设置为 text，否则无法处理流
+    data,
+    responseType: 'text',
     onDownloadProgress: (progressEvent) => {
-      // 关键：浏览器下载进度事件，用于捕获 SSE 流
       const event = progressEvent.event
-      if (event && event.target && event.target.responseText) {
+      if (event?.target?.responseText) {
         const text = event.target.responseText
-
-        // SSE 数据格式通常是 "data: xxx\n\n"，我们需要提取出 xxx
-        // 这里做一个简单的处理，实际可能需要更严谨的解析
         const lines = text.split('\n')
         const lastLine = lines[lines.length - 1]
 
@@ -65,36 +83,33 @@ export function chatStream(data, onMessage, onDone) {
           if (jsonData) {
             try {
               const parsed = JSON.parse(jsonData)
-              // 假设后端返回的是 { content: "..." } 或者直接是字符串
               onMessage(parsed.content || parsed)
-            } catch (e) {
-              // 如果不是 JSON，直接当文本处理
+            } catch {
               onMessage(jsonData)
             }
           }
         }
       }
-    }
-  }).then(res => {
-    // 请求完全结束后调用
-    onDone && onDone()
-  }).catch(err => {
-    onDone && onDone(err)
+    },
   })
+    .then(() => {
+      onDone?.()
+    })
+    .catch((err) => {
+      onDone?.(err)
+    })
 }
 
-// 4. 获取历史会话列表 (可选)
 export function getHistoryList() {
   return service({
     url: '/chat/history',
-    method: 'get'
+    method: 'get',
   })
 }
 
-// 5. 创建新会话 (可选)
 export function createNewChat() {
   return service({
     url: '/chat/new',
-    method: 'post'
+    method: 'post',
   })
 }

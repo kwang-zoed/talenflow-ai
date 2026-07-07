@@ -62,6 +62,7 @@ def create_job(db: Session, job_data: dict) -> JobPosition:
         job_id=job_data.get('job_id'),
         salary=job_data.get('salary'),
         location=job_data.get('location'),
+        work_address=job_data.get('work_address'),
         experience_requirement=job_data.get('experience_requirement'),
         education_requirement=job_data.get('education_requirement'),
         required_skills=job_data.get('required_skills', []),
